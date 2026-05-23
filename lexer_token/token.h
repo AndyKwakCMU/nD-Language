@@ -9,7 +9,9 @@ typedef enum {
 
 	TOK_FN,
 	TOK_RETURN,
+	TOK_LET,
 	TOK_INT,
+	TOK_INT_MUT,
 
 	TOK_LPAREN,
 	TOK_RPAREN,
@@ -24,7 +26,9 @@ typedef enum {
 	TOK_STAR,
 	TOK_SLASH,
 
-        TOK_ASSIGN
+        TOK_ASSIGN,
+
+	TOK_ERROR
 
 } TokenType;
 

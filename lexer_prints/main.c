@@ -5,7 +5,7 @@
 
 #include "lexer.h"
 
-int compile (FILE*);
+
 
 int main (int argc, char**argv)
 {
@@ -24,14 +24,9 @@ int main (int argc, char**argv)
 	if (fptr == NULL) {
 		printf ("\nfuck you\n");
 	} else {
-		compile (fptr);
+		lexer (fptr);
 	}
 	fclose (fptr);
 	return 0;
 }
-		
-int compile (FILE* fptr)
-{
-	lexer (fptr);
-	return 0;
-}
+
