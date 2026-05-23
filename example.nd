@@ -1,0 +1,10 @@
+# Very first example file of the nD language
+# I will finish this project no matter what lets get to it!!!
+
+
+
+fun main ()
+{
+    let x : int = 1;
+    return 0;
+}
