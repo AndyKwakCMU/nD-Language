@@ -1,10 +1,30 @@
-// Tokenize,  a modified version of the lexer with a function next_token being a lazily evaluated stream of tokens of the file. 
-// Right now, we are going to run the entire stream and store all tokens in order in an array. Just for debugging sake. Plus we don't really have a parser implementation yet, so we can work the parser and stream of tokens working very closely together later on. 
+// ========================================================================= //
+// Andy Kwak 2026
+
+// Tokenize, a modified version of the lexer with a function next_token 
+// being a lazily evaluated stream of tokens of the file. 
+
+// Right now, we are going to run the entire stream and store all tokens in 
+// order in an array. Just for debugging sake. Plus we don't really have a 
+// parser implementation yet, so we can work the parser and stream of tokens 
+// working very closely together later on. 
+// ========================================================================= //
+
+
+// ========================================================================= //
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
 
 #include "token.h"
 #include "tokenize.h"
+
+#define LEXEME_SIZE (sizeof(char) * 256)
+
+
+// ========================================================================= //
 
 Token** tokenize (FILE* fptr, int num_words);
 Token* next_token (FILE* fptr);
@@ -15,31 +35,65 @@ Token* word_handler (char* word);
 Token* digit_handler (int c, FILE* fptr);
 Token* switch_handler (int c);
 
-Token** tokenize (FILE* fptr, int num_words);
+
+// ========================================================================= //
+// tokenize - Creates an array of Tokens, populated with tokens in order
+// of the source code. It allocates exactly the amount of tokens.
+Token** tokenize (FILE* fptr, int num_words)
+//@requires isFilePointer(fptr) && num_words >= 0;
+//@ensures length(\result) == num_words;
 {
 	Token** T = malloc (sizeof (Token) * num_words);
 	int count = 0;
 	while (count < num_words) {
-		T [count] = next_token (fptr);
+		Token* t = next_token (fptr);
+		if (t == NULL) {
+			printf ("ERROR: num_words does not match actual number of words\n");
+			break;
+		}
+		T [count++] = t;
 	}
 	return T;
 }
+// ========================================================================= //
 
+
+// ========================================================================= //
+// next_token - Thunk of the file pointer giving out a stream of tokens until
+// EOF. 
 Token* next_token (FILE* fptr) 
+//@requires isFilePointer(fptr);
+//@ensures isToken(\result);
 {
 	int c = fgetc (fptr);
-	if (c == EOF) printf ("EOF\n");
+	if (c == EOF) {
+		printf ("EOF\n");
+		return NULL;
+	}
 	Token* t;
 
-	if (c == '#') t = comment_handler (c, fptr);
-	if (isspace (c)) t = next_token (fptr);
-	if (isalpha (c) || c == '_') t = alpha_handler (c, fptr);
-	if (isdigit (c)) t = digit_handler (c, fptr);
-	t = switch_handler (c);
 	
+	if (c == '#') {
+	// Skips comments
+		t = comment_handler (c, fptr);
+	} else if (isspace (c)){
+	// Skips spaces
+		t = next_token (fptr);
+	}else if (isalpha (c) || c == '_') {
+	// Finds alphabet or underscore, hands off to helper handler
+		t = alpha_handler (c, fptr);
+	} else if (isdigit (c)) {
+	// Finds digits, hands off to digit handler
+		t = digit_handler (c, fptr);
+	} else {
+	// Last case, hand off to the character switch case
+		t = switch_handler (c);
+	}
+
 	return t;
 }
 
+// comment_handler - Skips commented section of the source code
 Token* comment_handler (int c, FILE* fptr)
 {
 	while (c != '\n' && c != EOF) {
@@ -48,30 +102,33 @@ Token* comment_handler (int c, FILE* fptr)
 	return next_token (fptr);
 }
 
+// alpha_handler - Detects the alphabet (ouu shii) and it tries to get the
+// whole word, including underscores, and ending when it sees whitespace.
 Token* alpha_handler (int c, FILE* fptr)
+//@requires isalpha(c); 
 {
 	char word [256];
 	int i = 0;
 	
-	word [i++] = c;
-	
-	while ((c = fgetc (fptr)) != EOF &&
+	while (c != EOF &&
 	       (isalnum (c) || c == '_')) {
 		word [i++] = c;
+		c = fgetc (fptr);
 	}
 	word [i] = '\0';
-	
+
 	if (c != EOF) {
-		ungetc (c, fptr);
+		fputc (c, fptr);
 	}
 	
 	return word_handler (word);
 }
 
+// word_handler - Actually matches and allocates the Token struct
 Token* word_handler (char* word)
 {
 	Token* t = malloc (sizeof (Token));
-	*(t->lexeme) = "";
+	t->lexeme = NULL;
 	if (strcmp (word, "fun") == 0) {
 		t->type = TOK_FN;
 	} else if (strcmp (word, "let") == 0) {
@@ -84,38 +141,45 @@ Token* word_handler (char* word)
 		t->type = TOK_INT_MUT;
 	} else {
 		t->type = TOK_IDENTIFIER;
-		*(t->lexeme) = word;
+		t->lexeme = word;
 	}
 	return t;
 }
 
+// digit_handler - Detects numbers, creates a word, or the whole string of 
+// numbers without whitespace. Then, allocates and populates the Token
+// struct.
 Token* digit_handler (int c, FILE* fptr) 
+//@requires isdigit (c);
 {
 	char number [256];
 	int i = 0;
 	
-	number [i++] = c;
-	
-	while ((c = fgetc (fptr)) != EOF && isdigit (c)) {
+	while (c != EOF && isdigit (c)) {
 		number [i++] = c;
+		c = fgetc (fptr);
 	}
 	number [i] = '\0';
 
 	if (c != EOF) {
-		ungetc (c, fptr);
+		fputc (c, fptr);
 	}
 
 	Token* t = malloc (sizeof (Token));
 	t->type = TOK_INT_LITERAL;
-	*(t->lexeme) = number;
+	t->lexeme = number;
 	
 	return t;
 }
 
+// switch_handler - Detects a single character after failing previous
+// if-statements. Matches and allocates the Token struct. 
+// Populates the struct with the error token upon not being able to match
+// the character. This is a SYNTAX ERROR.
 Token* switch_handler (int c) 
 {
 	Token* t = malloc (sizeof (Token));
-	*(t->lexeme) = "";
+	t->lexeme = NULL;
 	switch (c) {
 		case '(' :
 			t->type = TOK_LPAREN;
@@ -157,3 +221,4 @@ Token* switch_handler (int c)
 	
 	return t;
 }
+// ========================================================================= //

@@ -1,14 +1,21 @@
+// ========================================================================= //
+// Andy Kwak 2026
+
 // main file of the ndc compiler 
+// ========================================================================= //
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include "utils.h"
 
 #include "token.h"
 #include "tokenize.h"
 #include "token_utils.h"
 
 
-
+// ========================================================================= //
 int main (int argc, char**argv)
 {
 	char* filename = NULL;
@@ -39,6 +46,8 @@ int main (int argc, char**argv)
 	
 	fclose (fptr);
 	free_tokens (T, num_words);
+
+	printf ("Oh hell yeah!\n");
 	return 0;
 }
-
+// ========================================================================= //

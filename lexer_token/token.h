@@ -34,7 +34,7 @@ typedef enum {
 
 typedef struct {
 	TokenType type;
-	char lexeme[256];
+	char* lexeme;
 } Token;
 
 #endif
