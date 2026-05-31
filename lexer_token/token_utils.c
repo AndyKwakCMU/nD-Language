@@ -50,6 +50,10 @@ char* tokenType2string (TokenType type)
                         return "TOK_INT_LITERAL";
                 case TOK_FN :
                         return "TOK_FN";
+                case TOK_LAMBDA :
+                        return "TOK_LAMBDA";
+                case TOK_FN_TYPE :
+                        return "TOK_FN_TYPE";
                 case TOK_RETURN :
                         return "TOK_RETURN";
                 case TOK_LET : 
@@ -70,16 +74,24 @@ char* tokenType2string (TokenType type)
                         return "TOK_COLON";
                 case TOK_SEMICOLON :
                         return "TOK_SEMICOLON";
+                case TOK_IF :
+                        return "TOK_IF";
+                case TOK_ELSE :
+                        return "TOK_ELSE";
+                case TOK_WHILE :
+                        return "TOK_WHILE";
                 case TOK_PLUS :
                         return "TOK_PLUS";
                 case TOK_MINUS :
                         return "TOK_MINUS";
                 case TOK_STAR :
-                        return "TOK_MINUS";
+                        return "TOK_STAR";
                 case TOK_SLASH :
                         return "TOK_SLASH";
                 case TOK_ASSIGN :
                         return "TOK_ASSIGN";
+                case TOK_MATCH_ARROW :
+                        return "TOK_MATCH_ARROW";
                 case TOK_ERROR :
                         return "i'm in... 0.3 seconds!";
                 default:
@@ -91,12 +103,15 @@ char* tokenType2string (TokenType type)
 // ========================================================================= //
 // free_tokens - Helper function for freeing a list of Tokens
 void free_tokens (Token** T, int n)
-//@requires isToken(T) && n >= 0;
+//@requires isToken(T) && n >= 0 && \length(T) == n;
 //@ensures true;
 {
         int i = 0;
 
         while (i < n) {
+                if (T[i]->lexeme != NULL) {
+                        free(T[i]->lexeme);
+                }
                 free(T[i++]);
         }
         free(T);

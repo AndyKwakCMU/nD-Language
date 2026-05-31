@@ -8,6 +8,8 @@ typedef enum {
 	TOK_INT_LITERAL,
 
 	TOK_FN,
+	TOK_LAMBDA,
+	TOK_FN_TYPE,
 	TOK_RETURN,
 	TOK_LET,
 	TOK_INT,
@@ -21,12 +23,18 @@ typedef enum {
 	TOK_COLON,
 	TOK_SEMICOLON,
 
+	TOK_IF,
+	TOK_ELSE,
+
+	TOK_WHILE,
+
 	TOK_PLUS,
 	TOK_MINUS,
 	TOK_STAR,
 	TOK_SLASH,
 
         TOK_ASSIGN,
+	TOK_MATCH_ARROW,
 
 	TOK_ERROR
 

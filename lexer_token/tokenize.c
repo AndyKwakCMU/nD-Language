@@ -21,7 +21,7 @@
 #include "token.h"
 #include "tokenize.h"
 
-#define LEXEME_SIZE (sizeof(char) * 256)
+#define MAX_WORD_LEN (sizeof(char) * 20)
 
 
 // ========================================================================= //
@@ -33,7 +33,7 @@ Token* comment_handler (int c, FILE* fptr);
 Token* alpha_handler (int c, FILE* fptr);
 Token* word_handler (char* word);
 Token* digit_handler (int c, FILE* fptr);
-Token* switch_handler (int c);
+Token* switch_handler (int c, FILE* fptr);
 
 
 // ========================================================================= //
@@ -71,7 +71,7 @@ Token* next_token (FILE* fptr)
 		return NULL;
 	}
 	Token* t;
-
+	//printf ("debug char (next_token): %c\n", (char) c);
 	
 	if (c == '#') {
 	// Skips comments
@@ -87,7 +87,7 @@ Token* next_token (FILE* fptr)
 		t = digit_handler (c, fptr);
 	} else {
 	// Last case, hand off to the character switch case
-		t = switch_handler (c);
+		t = switch_handler (c, fptr);
 	}
 
 	return t;
@@ -107,7 +107,7 @@ Token* comment_handler (int c, FILE* fptr)
 Token* alpha_handler (int c, FILE* fptr)
 //@requires isalpha(c); 
 {
-	char word [256];
+	char* word = malloc (MAX_WORD_LEN);
 	int i = 0;
 	
 	while (c != EOF &&
@@ -116,9 +116,10 @@ Token* alpha_handler (int c, FILE* fptr)
 		c = fgetc (fptr);
 	}
 	word [i] = '\0';
+	//printf ("debug char (alpha_handler): %c\n", (char) c);
 
 	if (c != EOF) {
-		fputc (c, fptr);
+		ungetc (c, fptr);
 	}
 	
 	return word_handler (word);
@@ -131,6 +132,14 @@ Token* word_handler (char* word)
 	t->lexeme = NULL;
 	if (strcmp (word, "fun") == 0) {
 		t->type = TOK_FN;
+	} else if (strcmp (word, "fn") == 0){
+		t->type = TOK_LAMBDA;
+	} else if (strcmp (word, "if") == 0) {
+		t->type = TOK_IF;
+	} else if (strcmp (word, "else") == 0) {
+		t->type = TOK_ELSE;
+	} else if (strcmp (word, "while") == 0) {
+		t->type = TOK_WHILE;
 	} else if (strcmp (word, "let") == 0) {
 		t->type = TOK_LET;
 	} else if (strcmp (word, "return") == 0) {
@@ -152,7 +161,7 @@ Token* word_handler (char* word)
 Token* digit_handler (int c, FILE* fptr) 
 //@requires isdigit (c);
 {
-	char number [256];
+	char* number = malloc (MAX_WORD_LEN);
 	int i = 0;
 	
 	while (c != EOF && isdigit (c)) {
@@ -160,9 +169,10 @@ Token* digit_handler (int c, FILE* fptr)
 		c = fgetc (fptr);
 	}
 	number [i] = '\0';
+	//printf ("debug char (digit_handler): %c\n", (char) c);
 
 	if (c != EOF) {
-		fputc (c, fptr);
+		ungetc (c, fptr);
 	}
 
 	Token* t = malloc (sizeof (Token));
@@ -176,7 +186,7 @@ Token* digit_handler (int c, FILE* fptr)
 // if-statements. Matches and allocates the Token struct. 
 // Populates the struct with the error token upon not being able to match
 // the character. This is a SYNTAX ERROR.
-Token* switch_handler (int c) 
+Token* switch_handler (int c, FILE* fptr) 
 {
 	Token* t = malloc (sizeof (Token));
 	t->lexeme = NULL;
@@ -203,7 +213,13 @@ Token* switch_handler (int c)
 			t->type = TOK_PLUS;
 			break;
 		case '-' :
-			t->type = TOK_MINUS;
+			c = fgetc (fptr);
+			if (c == '>') {
+				t->type = TOK_FN_TYPE;
+			} else {
+				ungetc (c, fptr);
+				t->type = TOK_MINUS;
+			}
 			break;
 		case '*' :
 			t->type = TOK_STAR;
@@ -212,7 +228,13 @@ Token* switch_handler (int c)
 			t->type = TOK_SLASH;
 			break;
 		case '=' :
-			t->type = TOK_ASSIGN;
+			c = fgetc (fptr);
+			if (c == '>') {
+				t->type = TOK_MATCH_ARROW;
+			}else {
+				ungetc (c, fptr);
+				t->type = TOK_ASSIGN;
+			}
 			break;
 		default:
 			t->type = TOK_ERROR;

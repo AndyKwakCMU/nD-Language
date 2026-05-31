@@ -5,7 +5,7 @@
 
 #include "utils.h"
 
-bool switch_counter (int c) 
+bool switch_counter (int c, FILE* fcount) 
 {
 	switch (c) {
 		case '(' :
@@ -23,13 +23,25 @@ bool switch_counter (int c)
 		case '+' :
 			return true;
 		case '-' :
-			return true;
+			c = fgetc (fcount);
+			if (c == '>') {
+				return true;
+			} else {
+				ungetc (c, fcount);
+				return true;
+			}
 		case '*' :
 			return true;
 		case '/' :
 			return true;
 		case '=' :
-			return true;
+			c = fgetc (fcount);
+			if (c == '>') {
+				return true;
+			} else {
+				ungetc (c, fcount);
+				return true;
+			}
 		default:
 			return false;
 	}
@@ -62,7 +74,7 @@ int word_counter (FILE* fcount)
 				} 
 			count++;
                 } else {
-			if (switch_counter (c)) {
+			if (switch_counter (c, fcount)) {
 				count++;
 				c = fgetc (fcount);
 			} 

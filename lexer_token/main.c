@@ -44,6 +44,7 @@ int main (int argc, char**argv)
 	Token** T = tokenize (fptr, num_words);
 	print_tokens (T, num_words);
 	
+	
 	fclose (fptr);
 	free_tokens (T, num_words);
 
