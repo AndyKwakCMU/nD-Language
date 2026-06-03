@@ -10,9 +10,9 @@
 
 #include "utils.h"
 
-#include "token.h"
-#include "tokenize.h"
-#include "token_utils.h"
+#include "tokenizer/token.h"
+#include "tokenizer/tokenize.h"
+#include "tokenizer/token_utils.h"
 
 
 // ========================================================================= //
