@@ -6,41 +6,66 @@
 #include <stdbool.h>
 
 #include "tokenizer_array/token.h"
-#include "tokenizer_array/fake_stream.h"
+#include "tokenizer_array/real_stream.h"
 #include "tokenizer_array/tokenize.h"
 
 #include "ast.h"
 
+AST_Program* parse (Stream* S);
 
-AST_Program* parse (Token** T, int n)
+bool is_statement  (Stream* S);
+
+AST_Program* statement_handler  (Stream* S);
+AST_Program* expression_handler (Stream* S);
+
+AST_Program* parse (Stream* S)
 //@requires \length(T) == n;
 //@ensures isAST(\result);
 {
         AST_Program* program = malloc (sizeof (AST_Program));
+        if (!program) {
+                perror ("program dude wtf hello\n");
+                exit (EXIT_FAILURE);
+        }
+
+
         program->function_count = 0;
         program->capacity = 4;
         program->functions = malloc (sizeof (Astn*) * program->capacity);
 
-
-
-        int i = 1;
-
-        while (true) {
-                if      (is_literal(T[i])) {
-                        literal_handler   (T[i]);
-                }
-                else if (is_binary(T[i])) {
-                        binary_handler    (T[i]);
-                }
-                else if (is_unary(T[i])) {
-                        unary_handler     (T[i]);
-                }
-                else if (is_func_call(T[i])) {
-                        func_call_handler (T[i]);
-                }
-                else { 
-                        perror ("No matched AST Node!");
-                        exit (EXIT_FAILURE);
-                }
+        if (is_error(S)) {
+                perror ("Somehow got an error token fucker\n");
+                exit (EXIT_FAILURE);
+        }
+        else if (is_statement(S)) {
+                return statement_handler (S);
+        }
+        else if (!is_statement(S)){
+                return expression_handler (S);
+        }
+        else { 
+                perror ("No matched AST Node!");
+                exit (EXIT_FAILURE);
         }
 }
+
+bool is_statement (Stream* S)
+{
+        switch ((stream_curr(S))->type) {
+                case TOK_IF :
+                        return true;
+                case TOK_ELSEIF :
+                        return true;
+                case TOK_ELSE :
+                        return true;
+                case TOK_WHILE :
+                        return true;
+                case TOK_LPAREN :
+                        return true;
+                case TOK_LBRACE :
+                        return true;
+                default : 
+                        return false;
+        }
+}
+

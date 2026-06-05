@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "token.h"
 #include "tokenize.h"
@@ -50,6 +51,8 @@ Stream* new_stream (FILE* T);
 Token* stream_curr (Stream* S);
 Token* stream_next (Stream* S);
 Token* stream_peek (Stream* S);
+
+bool is_stream_end (Stream* S);
 
 
 // ========================================================================= //
@@ -156,7 +159,9 @@ Token* word_handler (char* word)
 		t->type = TOK_LAMBDA;
 	} else if (strcmp (word, "if") == 0) {
 		t->type = TOK_IF;
-	} else if (strcmp (word, "else") == 0) {
+	} else if (strcmp (word, "elseif") == 0) {
+                t->type = TOK_ELSEIF;
+        } else if (strcmp (word, "else") == 0) {
 		t->type = TOK_ELSE;
 	} else if (strcmp (word, "while") == 0) {
 		t->type = TOK_WHILE;
@@ -354,4 +359,13 @@ Token* stream_peek (Stream* S)
 Token* stream_next (Stream* S)
 {
 	return next_token (S->fptr);
+}
+
+bool is_stream_end (Stream* S)
+{
+        if ((stream_curr(S))->type == TOK_EOF) {
+                return true;
+        } else {
+                return false;
+        }
 }

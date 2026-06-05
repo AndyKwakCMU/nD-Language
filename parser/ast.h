@@ -6,6 +6,9 @@ typedef enum {
         // Literals like int values
         NODE_LITERAL,
 
+        // Bracket shit fuck you
+        NODE_SCOPE,
+
         // Takes two values and does something, like arithmetic expressions
         NODE_BINARY_EXPR,
 
@@ -47,3 +50,7 @@ typedef struct {
         int function_count;
         int capacity;
 } AST_Program;
+
+Astn* new_literal_astn (Node_Type type, Literal_Expr literal);
+Astn* new_binary_astn (Node_Type type, Binary_Expr binary);
+Astn* new_urnary_expr (Node_Type type, Urnary_Expr urnary);

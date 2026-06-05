@@ -24,6 +24,7 @@ typedef enum {
 	TOK_SEMICOLON,
 
 	TOK_IF,
+        TOK_ELSEIF,
 	TOK_ELSE,
 
 	TOK_WHILE,
