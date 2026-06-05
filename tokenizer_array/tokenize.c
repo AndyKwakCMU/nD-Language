@@ -21,7 +21,7 @@
 #include "token.h"
 #include "tokenize.h"
 
-#include "fake_stream.h"
+#include "real_stream.h"
 
 #define MAX_WORD_LEN (sizeof(char) * 20)
 
@@ -31,6 +31,7 @@
 
 Token** tokenize (FILE* fptr, int num_words);
 Token* next_token (FILE* fptr);
+Token* peek_token (FILE* fptr);
 
 Token* comment_handler (int c, FILE* fptr);
 Token* alpha_handler (int c, FILE* fptr);
@@ -44,7 +45,7 @@ Token* switch_handler (int c, FILE* fptr);
 // I will implement a real stream when I feel like it, is there a performance benefit?
 // Technically yes no depending on how I use the tokens, algorithm sake I want a stream
 
-Stream* new_stream (Token** T);
+Stream* new_stream (FILE* T);
 
 Token* stream_curr (Stream* S);
 Token* stream_next (Stream* S);
@@ -263,6 +264,42 @@ Token* switch_handler (int c, FILE* fptr)
 	return t;
 }
 // ========================================================================= //
+
+Token* peek_token (FILE* fptr)
+{
+	int c = fgetc (fptr);
+	if (c == EOF) {
+		printf ("EOF\n");
+		return NULL;
+	}
+	Token* t;
+	//printf ("debug char (next_token): %c\n", (char) c);
+	
+	if (c == '#') {
+	// Skips comments
+		t = comment_handler (c, fptr);
+	} else if (isspace (c)){
+	// Skips spaces
+		t = next_token (fptr);
+	}else if (isalpha (c) || c == '_') {
+	// Finds alphabet or underscore, hands off to helper handler
+		t = alpha_handler (c, fptr);
+	} else if (isdigit (c)) {
+	// Finds digits, hands off to digit handler
+		t = digit_handler (c, fptr);
+	} else {
+	// Last case, hand off to the character switch case
+		t = switch_handler (c, fptr);
+	}
+	ungetc (c, fptr);
+
+	return t;
+}
+
+
+// ========================================================================= //
+
+/*
 Stream* new_strem (Token** T)
 {
 	Stream* S = malloc (sizeof (Stream));
@@ -286,4 +323,35 @@ Token* stream_peek (Stream* S)
 {
 	S->index = S->index + 1;
 	return S->T [(S->index)--];
+}
+*/
+
+Stream* new_stream (FILE* fptr)
+{
+	Stream* S = malloc (sizeof (Stream));
+	if (!S) perror ("yo wtf stream dawg\n");
+	S->fptr = fptr;
+	S->prev_token = TOK_START;
+	S->curr_token = next_token (S->fptr);
+	return S;
+}
+
+Token* stream_prev (Stream* S)
+{
+	return S->prev_token;
+}
+
+Token* stream_curr (Stream* S)
+{
+	return S->curr_token;
+}
+
+Token* stream_peek (Stream* S)
+{
+	return peek_token (S->fptr);
+}
+
+Token* stream_next (Stream* S)
+{
+	return next_token (S->fptr);
 }
