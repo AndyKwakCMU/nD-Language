@@ -36,8 +36,12 @@ typedef enum {
         TOK_ASSIGN,
 	TOK_MATCH_ARROW,
 
-	TOK_ERROR
+	TOK_ERROR,
 
+
+	// Only for the array implementation of tokens
+	TOK_START,
+	TOK_END
 } TokenType;
 
 typedef struct {

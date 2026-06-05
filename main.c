@@ -11,8 +11,15 @@
 #include "utils.h"
 
 #include "tokenizer/token.h"
-#include "tokenizer/tokenize.h"
+
+// printing the array of token shit
+/*
+#include "tokenizer/tokenize_array.h"
 #include "tokenizer/token_utils.h"
+*/
+
+
+
 
 
 // ========================================================================= //
@@ -41,12 +48,15 @@ int main (int argc, char**argv)
 		return 1;
 	} 
 	
+	// tokenize_array stuff
+	/*
 	Token** T = tokenize (fptr, num_words);
 	print_tokens (T, num_words);
-	
-	
-	fclose (fptr);
 	free_tokens (T, num_words);
+	*/
+
+
+	fclose (fptr);
 
 	printf ("Oh hell yeah!\n");
 	return 0;

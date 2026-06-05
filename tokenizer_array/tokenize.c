@@ -21,10 +21,13 @@
 #include "token.h"
 #include "tokenize.h"
 
+#include "fake_stream.h"
+
 #define MAX_WORD_LEN (sizeof(char) * 20)
 
 
 // ========================================================================= //
+// Building an array of tokens from the file
 
 Token** tokenize (FILE* fptr, int num_words);
 Token* next_token (FILE* fptr);
@@ -35,6 +38,18 @@ Token* word_handler (char* word);
 Token* digit_handler (int c, FILE* fptr);
 Token* switch_handler (int c, FILE* fptr);
 
+// ========================================================================= //
+// Using the array of tokens to make a fake stream of tokens
+// debugging sake
+// I will implement a real stream when I feel like it, is there a performance benefit?
+// Technically yes no depending on how I use the tokens, algorithm sake I want a stream
+
+Stream* new_stream (Token** T);
+
+Token* stream_curr (Stream* S);
+Token* stream_next (Stream* S);
+Token* stream_peek (Stream* S);
+
 
 // ========================================================================= //
 // tokenize - Creates an array of Tokens, populated with tokens in order
@@ -43,8 +58,10 @@ Token** tokenize (FILE* fptr, int num_words)
 //@requires isFilePointer(fptr) && num_words >= 0;
 //@ensures length(\result) == num_words;
 {
-	Token** T = malloc (sizeof (Token) * num_words);
+	Token** T = malloc ((sizeof (Token) * num_words) + 2);
 	int count = 0;
+	T [count++] = TOK_START;
+
 	while (count < num_words) {
 		Token* t = next_token (fptr);
 		if (t == NULL) {
@@ -53,6 +70,8 @@ Token** tokenize (FILE* fptr, int num_words)
 		}
 		T [count++] = t;
 	}
+	T[count] = TOK_END;
+
 	return T;
 }
 // ========================================================================= //
@@ -244,3 +263,27 @@ Token* switch_handler (int c, FILE* fptr)
 	return t;
 }
 // ========================================================================= //
+Stream* new_strem (Token** T)
+{
+	Stream* S = malloc (sizeof (Stream));
+	S->T = T;
+	S->index = 1;
+	return S;
+}
+
+Token* stream_curr (Stream* S)
+{
+	return S->T [S->index];
+}
+
+Token* stream_next (Stream* S)
+{
+	S->index = S->index + 1;
+	return S->T [S->index];
+}
+
+Token* stream_peek (Stream* S)
+{
+	S->index = S->index + 1;
+	return S->T [(S->index)--];
+}
