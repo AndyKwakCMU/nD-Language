@@ -3,7 +3,7 @@
 
 
 
-fun main () : unit -> int
+fun main () : int
 {
     let x : int = 1;
     let f : int -> int = (fn x => x - 1);

@@ -170,9 +170,11 @@ Token* word_handler (char* word)
 	} else if (strcmp (word, "return") == 0) {
 		t->type = TOK_RETURN;
 	} else if (strcmp (word, "int") == 0) {
-		t->type = TOK_INT;
+		t->type = TOK_INT_TYPE;
 	} else if (strcmp (word, "int$") == 0) {
-		t->type = TOK_INT_MUT;
+		t->type = TOK_INT_MUT_TYPE;
+	} else if (strcmp (word, "none") == 0) {
+		t->type = TOK_NONE_TYPE;	
 	} else {
 		t->type = TOK_IDENTIFIER;
 		t->lexeme = word;

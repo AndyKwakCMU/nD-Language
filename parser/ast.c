@@ -6,7 +6,7 @@
 
 #include "ast.h"
 
-Astn* new_literal_astn (Node_Type type, Literal_Expr literal)
+Astn* new_literal_astn (Literal_Expr* literal)
 {
         Astn* A = malloc (sizeof (Astn));
         if (!A) {
@@ -14,12 +14,12 @@ Astn* new_literal_astn (Node_Type type, Literal_Expr literal)
                 exit (EXIT_FAILURE);
         }
 
-        A->type = type;
+        A->kind = NODE_LITERAL;
         A->data.literal = literal;
         return A;
 }
 
-Astn* new_binary_astn (Node_Type type, Binary_Expr binary)
+Astn* new_binary_astn (Binary_Expr* binary)
 {
         Astn* A = malloc (sizeof (Astn));
         if (!A) {
@@ -27,12 +27,12 @@ Astn* new_binary_astn (Node_Type type, Binary_Expr binary)
                 exit (EXIT_FAILURE);
         }
 
-        A->type = type;
+        A->kind = NODE_BINARY_EXPR;
         A->data.binary = binary;
         return A;
 }
 
-Astn* new_urnary_astn (Node_Type type, Urnary_Expr urnary)
+Astn* new_urnary_astn (Urnary_Expr* urnary)
 {
         Astn* A = malloc (sizeof (Astn));
         if (!A) {
@@ -40,7 +40,20 @@ Astn* new_urnary_astn (Node_Type type, Urnary_Expr urnary)
                 exit (EXIT_FAILURE);
         }
 
-        A->type = type;
+        A->kind = NODE_UNARY_EXPR;
         A->data.urnary = urnary;
+        return A;
+}
+
+Astn* new_fun_dec (Fun_Type* fun)
+{
+        Astn* A = malloc (sizeof (Astn));
+        if (!A) {
+                perror ("FUCK YOU function");
+                exit (EXIT_FAILURE);
+        }
+
+        A->kind = NODE_FUN;
+        A->data.fun = fun;
         return A;
 }

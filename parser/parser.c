@@ -13,59 +13,65 @@
 
 AST_Program* parse (Stream* S);
 
-bool is_statement  (Stream* S);
 
-AST_Program* statement_handler  (Stream* S);
-AST_Program* expression_handler (Stream* S);
+AST_Program* fun_handler (AST_Program* A, Stream* S)
+{
+        TokenType curr_type = (stream_next (S))->type;
+
+        Fun_Type* fun = malloc (sizeof (Fun_Type));
+
+        // expecting a function name
+        // TODO : Add a redundant function name checker
+        if (curr_type != TOK_IDENTIFIER) {
+                perror ("yo you didn't write the function right\n");
+                exit (EXIT_FAILURE);
+        }
+        
+        char* fun_name = (stream_curr(S))->lexeme;
+        
+
+        // now expecting the left parenthesis
+        curr_type = (stream_next (S))->type;
+
+        if (curr_type != TOK_LPAREN) {
+                perror ("yo what are you doing with this function\n");
+                exit (EXIT_FAILURE);
+        }
+
+        // now expecting either a bunch of arguments or right parenthesis
+        curr_type = (stream_next (S))->type;
+        while (curr_type == TOK_IDENTIFIER) {
+                
+        }
+}
 
 AST_Program* parse (Stream* S)
 //@requires \length(T) == n;
 //@ensures isAST(\result);
 {
-        AST_Program* program = malloc (sizeof (AST_Program));
-        if (!program) {
+        AST_Program* A = malloc (sizeof (AST_Program));
+        if (!A) {
                 perror ("program dude wtf hello\n");
                 exit (EXIT_FAILURE);
         }
 
 
-        program->function_count = 0;
-        program->capacity = 4;
-        program->functions = malloc (sizeof (Astn*) * program->capacity);
+        A->function_count = 0;
+        A->capacity = 4;
+        A->functions = malloc (sizeof (Astn*) * A->capacity);
 
         if (is_error(S)) {
                 perror ("Somehow got an error token fucker\n");
                 exit (EXIT_FAILURE);
         }
-        else if (is_statement(S)) {
-                return statement_handler (S);
+        else if ((stream_curr(S))->type == TOK_FN) {
+                // only fucking true case         
+                return fun_handler (A, S);
         }
-        else if (!is_statement(S)){
-                return expression_handler (S);
-        }
+        // Later I need to implement like library stuff and stuff you feel me
         else { 
                 perror ("No matched AST Node!");
                 exit (EXIT_FAILURE);
-        }
-}
-
-bool is_statement (Stream* S)
-{
-        switch ((stream_curr(S))->type) {
-                case TOK_IF :
-                        return true;
-                case TOK_ELSEIF :
-                        return true;
-                case TOK_ELSE :
-                        return true;
-                case TOK_WHILE :
-                        return true;
-                case TOK_LPAREN :
-                        return true;
-                case TOK_LBRACE :
-                        return true;
-                default : 
-                        return false;
         }
 }
 

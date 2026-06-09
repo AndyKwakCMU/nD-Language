@@ -9,17 +9,17 @@ typedef enum {
         // Bracket shit fuck you
         NODE_SCOPE,
 
-        // Takes two values and does something, like arithmetic expressions
+        //Takes two values and does something, like arithmetic expressions
         NODE_BINARY_EXPR,
 
         // Takes one value and does something, like a pointer dereference
         NODE_UNARY_EXPR,
 
-        // Function calling and doing something idk fuck you
-        NODE_FUNC_CALL
-} Node_Type;
+        // Function
+        NODE_FUN
+} Node_Kind;
 
-typedef struct AST_Node Astn;
+typedef struct AST_Node;
 
 typedef struct {
         int value;
@@ -36,14 +36,44 @@ typedef struct {
         Astn* arg;
 } Urnary_Expr;
 
-struct AST_Node {
-        Node_Type type;
+// Function delcaration stuff
+typedef enum {
+        TYPE_INT,
+        TYPE_POINTER,
+        TYPE_FUN,
+        TYPE_NONE
+} Fun_Ret_Type;
+
+typedef struct Fun_Type;
+
+typedef struct {
+        Fun_Type* return_type;
+        int param_count;
+        Fun_Type** param_type;
+} Fun_Sig_Data;
+
+typedef struct Fun_Type {
+        char* name;
+        Fun_Ret_Type type;
+        Fun_Type** params;
         union {
-                Literal_Expr literal;
-                Binary_Expr binary;
-                Urnary_Expr urnary;
+                // Pointer return type
+                struct Fun_Type* pointer;
+
+                // Function return type
+                Fun_Sig_Data Fun_Sig;
         } data;
-};
+} Fun_Type;
+
+typedef struct AST_Node {
+        Node_Kind kind;
+        union {
+                Literal_Expr* literal;
+                Binary_Expr* binary;
+                Urnary_Expr* urnary;
+                Fun_Type* fun;
+        } data;
+} Astn;
 
 typedef struct {
         Astn** functions;
@@ -51,6 +81,7 @@ typedef struct {
         int capacity;
 } AST_Program;
 
-Astn* new_literal_astn (Node_Type type, Literal_Expr literal);
-Astn* new_binary_astn (Node_Type type, Binary_Expr binary);
-Astn* new_urnary_expr (Node_Type type, Urnary_Expr urnary);
+Astn* new_literal_astn (Literal_Expr* literal);
+Astn* new_binary_astn  (Binary_Expr* binary);
+Astn* new_urnary_expr  (Urnary_Expr* urnary);
+Astn* new_fun          (Fun_Type* fun);
