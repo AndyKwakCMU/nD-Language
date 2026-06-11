@@ -1,12 +1,19 @@
+// ========================================================================= //
 // Andy Kwak 2026
-// My AST struct implementation
 
+// My AST struct implementation
+// ========================================================================= //
+#ifndef AST_H
+#define AST_H
 
 #include "type.h"
 #include "variable.h"
 #include "function.h"
 
+// ========================================================================= //
 
+
+// ========================================================================= //
 typedef enum {
         // Literals like int values
         NODE_LITERAL,
@@ -20,8 +27,11 @@ typedef enum {
         // Takes one value and does something, like a pointer dereference
         NODE_UNARY_EXPR,
 
-        // Function
-        NODE_FUN
+        // Function call
+        NODE_FUN_CALL,
+
+        // Function declaration
+        NODE_FUN_DEC
 } Node_Kind;
 
 typedef struct AST_Node;
@@ -48,9 +58,10 @@ typedef struct AST_Node {
         Node_Kind kind;
         union {
                 Literal_Expr* literal;
-                Binary_Expr* binary;
-                Urnary_Expr* urnary;
-                Fun_Type* fun;
+                Binary_Expr*  binary;
+                Urnary_Expr*  urnary;
+                Fun_Type*     fun_dec;
+                Fun_Call*     fun_call;
         } data;
 } Astn;
 
@@ -60,7 +71,13 @@ typedef struct {
         int capacity;
 } AST_Program;
 
+// ========================================================================= //
 Astn* new_literal_astn (Literal_Expr* literal);
 Astn* new_binary_astn  (Binary_Expr* binary);
 Astn* new_urnary_expr  (Urnary_Expr* urnary);
-Astn* new_fun          (Fun_Type* fun);
+Astn* new_fun_dec      (Fun_Type* fun_dec);
+Astn* new_fun_call     (Fun_Call* fun_call);
+
+// ========================================================================= //
+
+#endif

@@ -1,6 +1,19 @@
+// ========================================================================= //
+// Andy Kwak 2026
+
+// My variable implementation
+// The closure implementation allows me to use functions as values, 
+// the env is the array of variables the function has access to, 
+// an example would be CPS where we have like a thousand variables
+
+// ========================================================================= //
+#ifndef VARIABLE_H
+#define VARIABLE_H
+
 
 #include "type.h"
 
+// ========================================================================= //
 typedef struct Value Value;
 
 typedef struct Closure {
@@ -24,3 +37,6 @@ typedef struct {
         Type* type;
         Value* value;
 } Var;
+// ========================================================================= //
+
+#endif

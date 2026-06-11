@@ -1,11 +1,20 @@
+// ========================================================================= //
+// Andy Kwak 2026
+
+// My AST helper function for the AST object
+// ========================================================================= //
 
 
+// ========================================================================= //
 #include <stdio.h>
 #include <stdlib.h>
 
-
 #include "ast.h"
 
+// ========================================================================= //
+
+
+// ========================================================================= //
 Astn* new_literal_astn (Literal_Expr* literal)
 {
         Astn* A = malloc (sizeof (Astn));
@@ -45,7 +54,7 @@ Astn* new_urnary_astn (Urnary_Expr* urnary)
         return A;
 }
 
-Astn* new_fun (Fun_Type* fun)
+Astn* new_fun_dec (Fun_Type* fun_dec)
 {
         Astn* A = malloc (sizeof (Astn));
         if (!A) {
@@ -53,7 +62,22 @@ Astn* new_fun (Fun_Type* fun)
                 exit (EXIT_FAILURE);
         }
 
-        A->kind = NODE_FUN;
-        A->data.fun = fun;
+        A->kind = NODE_FUN_DEC;
+        A->data.fun_dec = fun_dec;
         return A;
 }
+
+Astn* new_fun_call (Fun_Call* fun_call)
+{
+        Astn* A = malloc (sizeof (Astn));
+        if (!A) {
+                perror ("Fuck you function call");
+                exit (EXIT_FAILURE);
+        }
+
+        A->kind = NODE_FUN_CALL;
+        A->data.fun_call = fun_call;
+        return A;
+}
+
+// ========================================================================= //

@@ -1,13 +1,8 @@
 // ========================================================================= //
 // Andy Kwak 2026
 
-// Tokenize, a modified version of the lexer with a function next_token 
-// being a lazily evaluated stream of tokens of the file. 
+// Lazily evaluated tokenizer
 
-// Right now, we are going to run the entire stream and store all tokens in 
-// order in an array. Just for debugging sake. Plus we don't really have a 
-// parser implementation yet, so we can work the parser and stream of tokens 
-// working very closely together later on. 
 // ========================================================================= //
 
 
@@ -344,6 +339,8 @@ Token* stream_peek (Stream* S)
 }
 */
 
+// Stream implementation, very neat and nice!
+// ========================================================================= //
 Stream* new_stream (FILE* fptr)
 {
 	Stream* S = malloc (sizeof (Stream));
@@ -382,3 +379,5 @@ bool is_stream_end (Stream* S)
                 return false;
         }
 }
+// ========================================================================= //
+

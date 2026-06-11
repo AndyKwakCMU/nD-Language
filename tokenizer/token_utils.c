@@ -6,18 +6,23 @@
 // a thousand freaking switch cases every single time.
 // ========================================================================= //
 
+
+// ========================================================================= //
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "token.h"
 
-
 // ========================================================================= //
 
+
+// ========================================================================= //
 void print_tokens (Token** T, int n);
 char* tokenType2string (TokenType type);
 void free_tokens (Token** T, int n);
+
+// ========================================================================= //
 
 
 // ========================================================================= //
@@ -56,11 +61,9 @@ char* tokenType2string (TokenType type)
                         return "TOK_FN_TYPE";
                 case TOK_RETURN :
                         return "TOK_RETURN";
-                case TOK_LET : 
-                        return "TOK_LET";
-                case TOK_INT :
+                case TOK_INT_TYPE :
                         return "TOK_INT";
-                case TOK_INT_MUT :
+                case TOK_INT_MUT_TYPE :
                         return "TOK_INT_MUT";
                 case TOK_LPAREN : 
                         return "TOK_LPAREN";
@@ -100,6 +103,7 @@ char* tokenType2string (TokenType type)
 }
 // ========================================================================= //
 
+
 // ========================================================================= //
 // free_tokens - Helper function for freeing a list of Tokens
 void free_tokens (Token** T, int n)
@@ -116,3 +120,6 @@ void free_tokens (Token** T, int n)
         }
         free(T);
 }
+
+// ========================================================================= //
+

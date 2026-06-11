@@ -1,6 +1,11 @@
+// ========================================================================= //
 // Andy Kwak 2026
+
 // My parser implementation, top-down AST generator
 
+// ========================================================================= //
+
+// ========================================================================= //
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -11,15 +16,24 @@
 
 #include "ast.h"
 
+// ========================================================================= //
+
+// ========================================================================= //
 AST_Program* parse (Stream* S);
 
 
+// ========================================================================= //
 
 
+// ========================================================================= //
 AST_Program* body_handler (AST_Program* A, Stream* S);
 // Modular code for handling function body, loop body, user defined scopes, 
 // variable declarations, etc. 
 
+// ========================================================================= //
+
+
+// ========================================================================= //
 AST_Program* fun_handler (AST_Program* A, Stream* S)
 {
         TokenType curr_type = (stream_next (S))->type;
@@ -110,12 +124,16 @@ AST_Program* fun_handler (AST_Program* A, Stream* S)
         // TODO: Handle return types, which can be function types
         // now expecting a type
         curr_type = (stream_next (S))->type;
-        
+
 
 
         // TODO:   pass onto handling the body
 }
 
+// ========================================================================= //
+
+
+// ========================================================================= //
 AST_Program* parse (Stream* S)
 //@requires \length(T) == n;
 //@ensures isAST(\result);
@@ -146,3 +164,4 @@ AST_Program* parse (Stream* S)
         }
 }
 
+// ========================================================================= //
