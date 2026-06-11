@@ -45,7 +45,7 @@ Astn* new_urnary_astn (Urnary_Expr* urnary)
         return A;
 }
 
-Astn* new_fun_dec (Fun_Type* fun)
+Astn* new_fun (Fun_Type* fun)
 {
         Astn* A = malloc (sizeof (Astn));
         if (!A) {

@@ -7,4 +7,13 @@ However, unlike C or Rust with immutability, or SMLNJ with mutability, I am crea
 Instead of an afterthought or a feature, mutability and memory control should be an easily accessible and safe feature for any programmer. 
 Same with mathematical correctness and functional programming, you should be able to freely utilize it when it is needed, such as lambda functions, HOFs, and CPS style programming.
 
-I'm gonna figure out how to make better depictions and organize my GitHub better, so until then, be patient with my description and not-so-working front-end of my compiler. 
+
+Feature #1
+Block delcaration of variables
+
+Instead of cluttering out variable declaration throughout the function body, we declare variables at the start of any scope with the square brackets.
+
+This actually makes it very easy to visually inspect variable delcaration and their scopes. It also forces the programmer to organize their body in a way it only has logical code, pushing away from imperitive programming, however I try to keep it natively easy to do such memory control and altercations. 
+
+Feature #2
+idk

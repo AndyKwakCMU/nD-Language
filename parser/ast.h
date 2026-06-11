@@ -2,6 +2,11 @@
 // My AST struct implementation
 
 
+#include "type.h"
+#include "variable.h"
+#include "function.h"
+
+
 typedef enum {
         // Literals like int values
         NODE_LITERAL,
@@ -22,7 +27,10 @@ typedef enum {
 typedef struct AST_Node;
 
 typedef struct {
-        int value;
+        union {
+                int int_value;
+                char char_value;
+        } value;
 } Literal_Expr;
 
 typedef struct {
@@ -35,35 +43,6 @@ typedef struct {
         char op;
         Astn* arg;
 } Urnary_Expr;
-
-// Function delcaration stuff
-typedef enum {
-        TYPE_INT,
-        TYPE_POINTER,
-        TYPE_FUN,
-        TYPE_NONE
-} Fun_Ret_Type;
-
-typedef struct Fun_Type;
-
-typedef struct {
-        Fun_Type* return_type;
-        int param_count;
-        Fun_Type** param_type;
-} Fun_Sig_Data;
-
-typedef struct Fun_Type {
-        char* name;
-        Fun_Ret_Type type;
-        Fun_Type** params;
-        union {
-                // Pointer return type
-                struct Fun_Type* pointer;
-
-                // Function return type
-                Fun_Sig_Data Fun_Sig;
-        } data;
-} Fun_Type;
 
 typedef struct AST_Node {
         Node_Kind kind;

@@ -165,14 +165,16 @@ Token* word_handler (char* word)
 		t->type = TOK_ELSE;
 	} else if (strcmp (word, "while") == 0) {
 		t->type = TOK_WHILE;
-	} else if (strcmp (word, "let") == 0) {
-		t->type = TOK_LET;
 	} else if (strcmp (word, "return") == 0) {
 		t->type = TOK_RETURN;
 	} else if (strcmp (word, "int") == 0) {
 		t->type = TOK_INT_TYPE;
 	} else if (strcmp (word, "int$") == 0) {
 		t->type = TOK_INT_MUT_TYPE;
+	} else if (strcmp (word, "char") == 0) {
+		t->type = TOK_CHAR_TYPE;
+	} else if (strcmp (word, "char$") == 0) {
+		t->type = TOK_CHAR_MUT_TYPE;
 	} else if (strcmp (word, "none") == 0) {
 		t->type = TOK_NONE_TYPE;	
 	} else {
@@ -230,11 +232,20 @@ Token* switch_handler (int c, FILE* fptr)
 		case '}' :
 			t->type = TOK_RBRACE;
 			break;
+		case '[' :
+			t->type = TOK_LSBRACE;
+			break;
+		case ']' :
+			t->type = TOK_RSBRACE;
+			break;
 		case ':' :
 			t->type = TOK_COLON;
 			break;
 		case ';' :
 			t->type = TOK_SEMICOLON;
+			break;
+		case ',' :
+			t->type = TOK_COMMA;
 			break;
 		case '+' :
 			t->type = TOK_PLUS;
