@@ -96,6 +96,7 @@ Type* prim_type (Token** tlist, size_t i, Type* type)
 
 Type* tlist_handler (Token** tlist, size_t i, Type* type)
 {
+        // PEEP THE TAIL RECURSION!!!
         if (i < 0) return type;
 
         if (tlist[i] == TOK_STAR) {
