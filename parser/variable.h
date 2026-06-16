@@ -34,6 +34,7 @@ struct Value {
 };
 
 typedef struct {
+        char* name;
         Type* type;
         Value* value;
 } Var;

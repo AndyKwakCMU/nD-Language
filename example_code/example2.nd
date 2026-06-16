@@ -4,11 +4,11 @@
 fun main () : int # return type
 [
 # square bracket for variable declaration
-x : int;
-y : int -> int = (fn x => x + 1);
+        x : int;
+        y : int -> int = (fn x => x + 1);
 ] 
 {
-# bracket for body, purely logical
-x = 3;
-return y x;
+        # bracket for body, purely logical
+        x = 3;
+        return y x;
 }

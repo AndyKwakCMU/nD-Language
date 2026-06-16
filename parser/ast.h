@@ -21,7 +21,8 @@ typedef enum {
         // Bracket shit fuck you
         NODE_SCOPE,
 
-        //Takes two values and does something, like arithmetic expressions
+        // Takes two values and does something, like arithmetic expressions,
+        // conditionals, assignment, etc.
         NODE_BINARY_EXPR,
 
         // Takes one value and does something, like a pointer dereference
@@ -31,7 +32,10 @@ typedef enum {
         NODE_FUN_CALL,
 
         // Function declaration
-        NODE_FUN_DEC
+        NODE_FUN_DEC,
+
+        // Loop block
+        NODE_LOOP
 } Node_Kind;
 
 typedef struct AST_Node;
@@ -54,12 +58,18 @@ typedef struct {
         Astn* arg;
 } Urnary_Expr;
 
+typedef struct {
+        Binary_Expr* cond;
+        Astn** body;
+} Loop_Expr;
+
 typedef struct AST_Node {
         Node_Kind kind;
         union {
                 Literal_Expr* literal;
                 Binary_Expr*  binary;
                 Urnary_Expr*  urnary;
+                Loop_Expr*    loop;
                 Fun_Type*     fun_dec;
                 Fun_Call*     fun_call;
         } data;
@@ -75,6 +85,7 @@ typedef struct {
 Astn* new_literal_astn (Literal_Expr* literal);
 Astn* new_binary_astn  (Binary_Expr* binary);
 Astn* new_urnary_expr  (Urnary_Expr* urnary);
+Astn* new_loop_expr    (Loop_Expr* loop);
 Astn* new_fun_dec      (Fun_Type* fun_dec);
 Astn* new_fun_call     (Fun_Call* fun_call);
 
