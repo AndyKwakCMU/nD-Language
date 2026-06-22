@@ -15,6 +15,9 @@
 #include "tokenizer/tokenize.h"
 
 #include "ast.h"
+#include "type.h"
+#include "variable.h"
+#include "function.h"
 
 // ========================================================================= //
 
@@ -22,11 +25,21 @@
 AST_Program* parse (Stream* S);
 
 
+
+
 // ========================================================================= //
 
 
 // ========================================================================= //
-Type* pointer_type (Token** tlist, size_t i, Type* type)
+/*
+        Problem with this version is that I was forcing a bottom up system, 
+        while on paper it seemed great, once we add precedence and 
+        parenthesis, along with pointers of functions of pointers and such,
+        it gets extremely messy. It is much better to simply Pratt Parse the
+        types as well, which I will now implement. 
+
+
+Type* pointer_type (GUser_Types* G, Token** tlist, int i, Type* type)
 {
         // i is at *
         Type* t = malloc (sizeof (Type));
@@ -34,18 +47,18 @@ Type* pointer_type (Token** tlist, size_t i, Type* type)
         t->pointer = NULL;
 
         if (i > 0 && tlist[i-1] == TOK_STAR) {
-                t->pointer = pointer_type (tlist, i - 1, NULL);
+                t->pointer = pointer_type (G, tlist, i - 1, NULL);
         }
 
         if (!type) {
-                return tlist_handler (tlist, i - 1, t);
+                return tlist_handler (G, tlist, i - 1, t);
         } else if (type->kind == FUNCTION) {
                 (type->data.tree)->input = t;
-                return tlist_handler (tlist, i - 1, type);
+                return tlist_handler (G, tlist, i - 1, type);
         }
 }
 
-Type* fun_type_handler (Token** tlist, size_t i, Type* type)
+Type* fun_type_handler (GUser_Types* G, Token** tlist, int i, Type* type)
 {
         // i is at ->
         Type* t = malloc (sizeof (Type));
@@ -55,16 +68,33 @@ Type* fun_type_handler (Token** tlist, size_t i, Type* type)
         if (!type) {
                 perror ("Type is typed in wrong buddy.\n");
                 exit (EXIT_FAILURE);
+        } else if (type->kind == FUNCTION 
+                && !((type->data.tree)->input)) {
+                perror ("Type is typed in wrong buddy.\n");
+                exit (EXIT_FAILURE);
         }
 
         (t->data.tree)->output = type;
         (t->data.tree)->intput = NULL;
 
 
-        return tlist_handler (tlist, i - 1, t);
+        return tlist_handler (G, tlist, i - 1, t);
 }
 
-Type* prim_type (Token** tlist, size_t i, Type* type)
+Type* user_type (GUser_Types* G, Token** tlist, int i, Type* type)
+{
+        char* tname = (tlist[i])->lexeme;
+        if (!in_FUser (G, tname)) {
+                perror ("User Type does not exist!\n");
+                exit (EXIT_FAILURE);
+        }
+
+        Type* t = malloc (sizeof (Type));
+        t->kind = USER;
+        t->data.user = get_GUser (G, tname);
+}
+
+Type* prim_type (GUser_Types* G, Token** tlist, int i, Type* type)
 {
         // i is at the prim type
         Type* t = malloc (sizeof (Type));
@@ -85,39 +115,48 @@ Type* prim_type (Token** tlist, size_t i, Type* type)
         if (!type) {
                 type = t;
         } else if (type->kind == FUNCTION) {
-                (type->data.tree)->intput = t;
+                if (!(type->data.tree)->intput) {
+                        (type->data.tree)->intput = t;
+                } else {
+                        perror ("type written wrong and stuff\n");
+                        exit (EXIT_FAILURE);
+                }
         } else {
                 perror ("Type is typed in wrong buddy.\n");
                 exit (EXIT_FAILURE);
         }
 
-        return tlist_handler (tlist, i - 1, type);
+        return tlist_handler (G, tlist, i - 1, type);
 }
 
-Type* tlist_handler (Token** tlist, size_t i, Type* type)
+Type* tlist_handler (GUser_Types* G, Token** tlist, int i, Type* type)
 {
         // PEEP THE TAIL RECURSION!!!
         if (i < 0) return type;
 
         if (tlist[i] == TOK_STAR) {
-                return pointer_type (tlist, i, type);
+                return pointer_type (G, tlist, i, type);
         } else if (tlist[i] == TOK_FN_TYPE) {
-                return fun_type (tlist, i, type);
+                return fun_type (G, tlist, i, type);
+        } else if (tlist[i] == TOK_IDENTIFIER) {
+                return user_type (G, tlist, i, type);
         } else {
-                return prim_type (tlist, i, type);
+                return prim_type (G, tlist, i, type);
         }
 }
 
-Type* type_handler (Stream* S) 
+Type* type_handler (GUser_Types* G, Stream* S) 
 {
-        size_t list_index = 0;
-        size_t list_size = 2;
+        int list_index = 0;
+        int list_size = 2;
         Token** tlist = malloc (sizeof (list_size));
 
         while (true) {
                 if (stream_curr(S)->type == TOK_LSBRACE) {
                         break;
                 } else if (stream_curr(S)->type == TOK_LBRACE) {
+                        break;
+                } else if (stream_curr(S)->type == TOK_COMMA) {
                         break;
                 } else {
                         tlist[list_index++] = stream_curr (S);
@@ -126,10 +165,10 @@ Type* type_handler (Stream* S)
                 if (list_index == list_size) {
                         Token** new = malloc (sizeof (list_size * 2));
                         
-                        int i = 0;
-                        while (i < list_size) {
+                        int i = list_size - 1;
+                        while (i >= 0) {
                                 new[i] = tlist[i];
-                                i++;
+                                i--;
                         }
 
                         list_size = list_size * 2;
@@ -142,23 +181,23 @@ Type* type_handler (Stream* S)
         // function or variable
 
 
-        return tlist_handler (tlist, list_index, NULL);
+        return tlist_handler (G, tlist, list_index, NULL);
 }
+*/
 
 // ========================================================================= //
 
 
 // ========================================================================= //
-// Modular code for handling function body, loop body, user defined scopes, 
-// variable declarations, etc. 
-Astn** body_handler (Stream* S);
+// Modular code for handling function body
+Astn** fun_body_handler (AST_Program* A, Stream* S);
 
 
 // ========================================================================= //
 
 
 // ========================================================================= //
-AST_Program* fun_handler (AST_Program* A, Stream* S)
+void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
 {
         TokenType curr_type = (stream_next (S))->type;
 
@@ -172,7 +211,7 @@ AST_Program* fun_handler (AST_Program* A, Stream* S)
         }
         
         char* fun_name = (stream_curr(S))->lexeme;
-        
+        fun->fun_name = fun_name;
 
         // now expecting the left parenthesis
         curr_type = (stream_next (S))->type;
@@ -203,7 +242,7 @@ AST_Program* fun_handler (AST_Program* A, Stream* S)
                 }
 
                 // Now looking for type
-                variable->type = type_handler (S);
+                variable->type = type_handler (G, S);
 
                 // Either we are done or we have a comma indicating there is
                 // another parameter to be read
@@ -231,15 +270,13 @@ AST_Program* fun_handler (AST_Program* A, Stream* S)
                 exit (EXIT_FAILURE);
         }
 
-        // TODO: Handle return types, which can be function types
         // now expecting a type
-        (stream_next (S))->type;
-        fun->ret_type = type_handler (S);
+        fun->ret_type = type_handler (G, S);
 
-        // TODO:   pass onto handling the body
-        fun->body = body_handler (S);
+        // TODO: pass onto handling the body
+        fun->body = body_handler (A, S);
 
-        return fun;
+        program_add_fun (A, fun);
 }
 
 // ========================================================================= //
@@ -250,30 +287,27 @@ AST_Program* parse (Stream* S)
 //@requires \length(T) == n;
 //@ensures isAST(\result);
 {
-        AST_Program* A = malloc (sizeof (AST_Program));
-        if (!A) {
-                perror ("program dude wtf hello\n");
-                exit (EXIT_FAILURE);
+        AST_Program* A = new_Program ();
+        GUser_Types * G = new_GUser ();
+
+        while ((stream_curr(S))->type != TOK_EOF) {
+                if (is_error(S)) {
+                        perror ("Somehow got an error token fucker\n");
+                        exit (EXIT_FAILURE);
+                } else if ((stream_curr(S))->type == TOK_TYPEDEF) {
+                        typedef_handler (G, S);
+                } else if ((stream_curr(S))->type == TOK_FN) {
+                        fun_handler (A, G, S);
+                }
+                // Later I need to implement like library stuff and stuff you 
+                // feel me
+                else { 
+                        perror ("No matched AST Node!");
+                        exit (EXIT_FAILURE);
+                }
         }
 
-
-        A->function_count = 0;
-        A->capacity = 4;
-        A->functions = malloc (sizeof (Astn*) * A->capacity);
-
-        if (is_error(S)) {
-                perror ("Somehow got an error token fucker\n");
-                exit (EXIT_FAILURE);
-        }
-        else if ((stream_curr(S))->type == TOK_FN) {
-                // only fucking true case         
-                return fun_handler (A, S);
-        }
-        // Later I need to implement like library stuff and stuff you feel me
-        else { 
-                perror ("No matched AST Node!");
-                exit (EXIT_FAILURE);
-        }
+        return A;
 }
 
 // ========================================================================= //

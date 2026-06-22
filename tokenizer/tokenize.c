@@ -152,6 +152,8 @@ Token* word_handler (char* word)
 		t->type = TOK_FN;
 	} else if (strcmp (word, "fn") == 0){
 		t->type = TOK_LAMBDA;
+	} else if (strcmp (word, "typedef") == 0){
+		t->type = TOK_TYPEDEF;
 	} else if (strcmp (word, "if") == 0) {
 		t->type = TOK_IF;
 	} else if (strcmp (word, "elseif") == 0) {

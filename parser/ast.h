@@ -14,6 +14,22 @@
 
 
 // ========================================================================= //
+Astn* new_literal_astn (Literal_Expr* literal);
+Astn* new_binary_astn  (Binary_Expr* binary);
+Astn* new_urnary_expr  (Urnary_Expr* urnary);
+Astn* new_loop_expr    (Loop_Expr* loop);
+Astn* new_fun_dec      (Fun_Type* fun_dec);
+Astn* new_fun_call     (Fun_Call* fun_call);
+
+
+AST_Program* new_Program ();
+void program_add_fun (AST_Program* A, Fun_Type* fun);
+void program_get_fun (AST_Program* A, char* name);
+
+// ========================================================================= //
+
+
+// ========================================================================= //
 typedef enum {
         // Literals like int values
         NODE_LITERAL,
@@ -35,15 +51,19 @@ typedef enum {
         NODE_FUN_DEC,
 
         // Loop block
-        NODE_LOOP
+        NODE_LOOP,
+
+        // Recursively defined body block
+        NODE_BODY
 } Node_Kind;
 
 typedef struct AST_Node;
 
 typedef struct {
+        Type* type;
         union {
-                int int_value;
-                char char_value;
+                int int_val;
+                char char_val;
         } value;
 } Literal_Expr;
 
@@ -59,8 +79,28 @@ typedef struct {
 } Urnary_Expr;
 
 typedef struct {
+        Astn** inst; // instructions, UBA of ast, L->R order
+        size_t num_inst;
+        size_t inst_cap;
+
+        // Every body enclosed by braces are a newly defined scope,
+        // in my language, each defined scope owns its delcared allocated memory
+        // unless otherwise returned, which the caller function will own 
+        // the memory. A very Rust approach to memory allocations, except
+        // I restrict progammers in a way they are enclosed in a box of
+        // scopes where the compiler really can't mess up where a pointer's scope ends.
+
+        // Thus each body has the capabilities to declare its own variables
+        // Also, scopes are values, you can return values or allocated memory from scopes,
+        // Simplifying and organizing a lot of operations.
+        Var**  var; 
+        size_t num_var;
+        size_t var_cap;
+} Body_Block;
+
+typedef struct {
         Binary_Expr* cond;
-        Astn** body;
+        Body_Block* body;
 } Loop_Expr;
 
 typedef struct AST_Node {
@@ -72,23 +112,17 @@ typedef struct AST_Node {
                 Loop_Expr*    loop;
                 Fun_Type*     fun_dec;
                 Fun_Call*     fun_call;
+                Body_Block*   body_block;
         } data;
 } Astn;
 
 typedef struct {
         Astn** functions;
-        int function_count;
-        int capacity;
+        size_t function_count;
+        size_t capacity;
 } AST_Program;
 
 // ========================================================================= //
-Astn* new_literal_astn (Literal_Expr* literal);
-Astn* new_binary_astn  (Binary_Expr* binary);
-Astn* new_urnary_expr  (Urnary_Expr* urnary);
-Astn* new_loop_expr    (Loop_Expr* loop);
-Astn* new_fun_dec      (Fun_Type* fun_dec);
-Astn* new_fun_call     (Fun_Call* fun_call);
 
-// ========================================================================= //
 
 #endif

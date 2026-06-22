@@ -13,15 +13,20 @@
 typedef struct Fun_Type {
         char* fun_name;
         Type* ret_type;
-        int num_param;
+
         Var** params; // UBA
-        Astn** body;
+        size_t num_param;
+        size_t param_cap;
+
+        Body_Block* body;
 } Fun_Type;
 
 typedef struct Fun_Call {
         char* fun_name;
-        int num_args;
+
         Var** args; // UBA
+        size_t num_args;
+        size_t args_cap;
 } Fun_Call;
 
 // ========================================================================= //
