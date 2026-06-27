@@ -1,0 +1,1 @@
+fun main (a : int, b : int->int) : int;

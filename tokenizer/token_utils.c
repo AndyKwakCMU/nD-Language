@@ -57,14 +57,20 @@ char* tokenType2string (TokenType type)
                         return "TOK_FN";
                 case TOK_LAMBDA :
                         return "TOK_LAMBDA";
-                case TOK_FN_TYPE :
+                case TOK_ARROW_TYPE :
                         return "TOK_FN_TYPE";
                 case TOK_RETURN :
                         return "TOK_RETURN";
+                case TOK_TYPEDEF :
+                        return "TOK_TYPEDEF";
                 case TOK_INT_TYPE :
                         return "TOK_INT";
                 case TOK_INT_MUT_TYPE :
                         return "TOK_INT_MUT";
+                case TOK_CHAR_TYPE :
+                        return "TOK_CHAR_TYPE";
+                case TOK_CHAR_MUT_TYPE :
+                        return "TOK_CHAR_MUT_TYPE";
                 case TOK_LPAREN : 
                         return "TOK_LPAREN";
                 case TOK_RPAREN :
@@ -73,12 +79,20 @@ char* tokenType2string (TokenType type)
                         return "TOK_LBRACE";
                 case TOK_RBRACE : 
                         return "TOK_RBRANCE";
+                case TOK_LSBRACE :
+                        return "TOK_LSBRACE";
+                case TOK_RSBRACE :
+                        return "TOK_RSBRACE";
                 case TOK_COLON:
                         return "TOK_COLON";
+                case TOK_COMMA :
+                        return "TOK_COMMA";
                 case TOK_SEMICOLON :
                         return "TOK_SEMICOLON";
                 case TOK_IF :
                         return "TOK_IF";
+                case TOK_ELSEIF :
+                        return "TOK_ELSEIF";
                 case TOK_ELSE :
                         return "TOK_ELSE";
                 case TOK_WHILE :

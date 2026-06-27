@@ -1,14 +1,14 @@
 # CURRENT WORKING EXAMPLE CODE
 # NEW SYNTAX INCLUDES SQUARE BRACKET FOR VARIABLE DECLARATION
 
-fun main () : int # return type
+fun main (a : int, b : int->int) : int # return type
 [
 # square bracket for variable declaration
         x : int;
-        y : int -> int = (fn x => x + 1);
+        y : int->int;
 ] 
 {
         # bracket for body, purely logical
         x = 3;
-        return y x;
+        return 1;
 }

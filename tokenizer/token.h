@@ -22,7 +22,7 @@ typedef enum {
 
 	TOK_FN,
 	TOK_LAMBDA,
-	TOK_FN_TYPE,
+	TOK_ARROW_TYPE,
 	TOK_RETURN,
 	TOK_TYPEDEF,
 
@@ -68,7 +68,7 @@ typedef enum {
 // ========================================================================= //
 
 // ========================================================================= //
-typedef struct {
+typedef struct Token {
 	TokenType type;
 	char* lexeme;
 } Token;

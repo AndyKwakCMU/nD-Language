@@ -16,6 +16,7 @@ typedef struct {
         FILE* fptr;
         Token* prev_token;
         Token* curr_token;
+        Token* next_token;
 } Stream;
 
 // ========================================================================= //

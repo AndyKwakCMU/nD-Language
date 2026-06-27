@@ -15,9 +15,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "token.h"
 #include "tokenize.h"
+#include "real_stream.h"
 
 // ========================================================================= //
 

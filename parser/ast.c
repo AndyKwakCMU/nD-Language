@@ -8,6 +8,7 @@
 // ========================================================================= //
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ast.h"
 
@@ -15,69 +16,85 @@
 
 
 // ========================================================================= //
-Astn* new_literal_astn (Literal_Expr* literal)
+GUser_Types* new_GUser ()
 {
-        Astn* A = malloc (sizeof (Astn));
-        if (!A) {
-                perror ("FUCK YOU LITERAL");
-                exit (EXIT_FAILURE);
-        }
-
-        A->kind = NODE_LITERAL;
-        A->data.literal = literal;
-        return A;
+        GUser_Types* G = malloc (sizeof (GUser_Types));
+        G->index = 0;
+        G->size = 4;
+        G->typelist = malloc (sizeof(User_Type*) * 4);
+        return G;
 }
 
-Astn* new_binary_astn (Binary_Expr* binary)
+void GUser_add (GUser_Types* G, User_Type* U)
 {
-        Astn* A = malloc (sizeof (Astn));
-        if (!A) {
-                perror ("FUCK YOU BINARY");
-                exit (EXIT_FAILURE);
-        }
+        G->typelist[(G->index)++] = U;
 
-        A->kind = NODE_BINARY_EXPR;
-        A->data.binary = binary;
-        return A;
+        if (G->index == G->size) {
+                size_t cap = G->size * 2;
+                User_Type** new = malloc (sizeof (User_Type*) * cap);
+
+                size_t i = 0;
+                size_t n = G->index;
+                User_Type** rem = G->typelist;
+                while (i < n) {
+                        new[i] = rem[i];
+                        i++;
+                }
+
+                free (rem);
+                G->typelist = new;
+                G->size = cap;
+        }
 }
 
-Astn* new_urnary_astn (Urnary_Expr* urnary)
+bool in_GUser (GUser_Types* G, char* name)
 {
-        Astn* A = malloc (sizeof (Astn));
-        if (!A) {
-                perror ("FUCK YOU URNARY");
-                exit (EXIT_FAILURE);
+        size_t i = 0;
+        size_t n = G->index;
+        while (i < n) {
+                char* curr_name = G->typelist[i]->struct_name;
+                if (strcmp (curr_name, name) == 0) {
+                        return true;
+                }
+                i++;
         }
-
-        A->kind = NODE_UNARY_EXPR;
-        A->data.urnary = urnary;
-        return A;
+        return false;
 }
 
-Astn* new_fun_dec (Fun_Type* fun_dec)
+User_Type* get_GUser (GUser_Types* G, char* name)
 {
-        Astn* A = malloc (sizeof (Astn));
-        if (!A) {
-                perror ("FUCK YOU function");
-                exit (EXIT_FAILURE);
+        size_t i = 0;
+        size_t n = G->index;
+        while (i < n) {
+                char* curr_name = G->typelist[i]->struct_name;
+                if (strcmp (curr_name, name) == 0) {
+                        return G->typelist[i];
+                }
+                i++;
         }
-
-        A->kind = NODE_FUN_DEC;
-        A->data.fun_dec = fun_dec;
-        return A;
+        perror ("User defined type DNE\n");
+        exit (EXIT_FAILURE);
 }
 
-Astn* new_fun_call (Fun_Call* fun_call)
-{
-        Astn* A = malloc (sizeof (Astn));
-        if (!A) {
-                perror ("Fuck you function call");
-                exit (EXIT_FAILURE);
-        }
+// ========================================================================= //
 
-        A->kind = NODE_FUN_CALL;
-        A->data.fun_call = fun_call;
-        return A;
+
+// ========================================================================= //
+void fun_param_add (Fun_Type* fun, Var* v)
+{
+        fun->params[(fun->num_param)++] = v;
+        if (fun->num_param == fun->param_cap) {
+                fun->param_cap = fun->param_cap * 2;
+                Var** new = malloc (sizeof (Var*) * fun->param_cap);
+                
+                size_t i = 0;
+                while (i < fun->num_param) {
+                        new[i] = fun->params[i];
+                        i++;
+                }
+                free (fun->params);
+                fun->params = new;
+        }
 }
 
 // ========================================================================= //
@@ -100,27 +117,35 @@ AST_Program* new_Program ()
 
 void program_add_fun (AST_Program* A, Fun_Type* fun)
 {
-        if (strcmp(fun->fun_name, "main") == 0) {
+        char* name = fun->fun_name;
+        if (strcmp(name, "main") == 0) {
                 if (A->functions[0] == NULL) {
-                        A->functions[0] = fun;
+                        Astn* node = malloc (sizeof (Astn));
+                        node->kind = NODE_FUN_DEC;
+                        node->data.fun_dec = fun;
+                        A->functions[0] = node;
+                        printf ("Main function declared!!\n");
                 } else {
                         perror ("more than one main function\n");
                         exit (EXIT_FAILURE);
                 }
         } else {
-                A->functions[(A->function_count)++] = fun;
+                Astn* node = malloc (sizeof (Astn));
+                node->kind = NODE_FUN_DEC;
+                node->data.fun_dec = fun;
+                A->functions[A->function_count] = node;
+                A->function_count++;
 
                 if (A->function_count == A->capacity) {
                         size_t new_cap = A->capacity * 2;
                         Astn** new = malloc (sizeof (Astn*) * new_cap);
                         
-                        size_t i = (A->function_count) - 1;
+                        size_t i = 0;
                         size_t n = A->function_count;
-                        while (i > 0) {
+                        while (i < n) {
                                 new[i] = A->functions[i];
                                 i--;
                         }
-                        new[0] = A->functions[0];
                         Astn** rem = A->functions;
                         A->functions = new;
                         A->capacity = new_cap;
@@ -129,3 +154,5 @@ void program_add_fun (AST_Program* A, Fun_Type* fun)
                 }
         }
 }
+
+// ========================================================================= //

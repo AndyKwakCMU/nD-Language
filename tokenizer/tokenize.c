@@ -16,8 +16,9 @@
 
 #include "token.h"
 #include "tokenize.h"
-
 #include "real_stream.h"
+
+#include "../utils.h"
 
 #define MAX_WORD_LEN (sizeof(char) * 20)
 
@@ -59,7 +60,9 @@ Token** tokenize (FILE* fptr, int num_words)
 {
 	Token** T = malloc ((sizeof (Token) * num_words) + 2);
 	int count = 0;
-	T [count++] = TOK_START;
+	Token* start = malloc (sizeof (Token));
+	start->type = TOK_START;
+	T [count++] = start;
 
 	while (count < num_words) {
 		Token* t = next_token (fptr);
@@ -69,7 +72,9 @@ Token** tokenize (FILE* fptr, int num_words)
 		}
 		T [count++] = t;
 	}
-	T[count] = TOK_END;
+	Token* end = malloc (sizeof (Token));
+	end->type = TOK_END;
+	T[count] = end;
 
 	return T;
 }
@@ -84,14 +89,14 @@ Token* next_token (FILE* fptr)
 //@ensures isToken(\result);
 {
 	int c = fgetc (fptr);
-	if (c == EOF) {
-		printf ("EOF\n");
-		return NULL;
-	}
 	Token* t;
-	//printf ("debug char (next_token): %c\n", (char) c);
-	
-	if (c == '#') {
+
+	if (c == EOF) {
+		t = malloc (sizeof (Token));
+		t->type = TOK_EOF;
+		t->lexeme = NULL;
+		return t;
+	} else if (c == '#') {
 	// Skips comments
 		t = comment_handler (c, fptr);
 	} else if (isspace (c)){
@@ -125,7 +130,7 @@ Token* comment_handler (int c, FILE* fptr)
 Token* alpha_handler (int c, FILE* fptr)
 //@requires isalpha(c); 
 {
-	char* word = malloc (MAX_WORD_LEN);
+	char* word = malloc (sizeof (char) * MAX_WORD_LEN);
 	int i = 0;
 	
 	while (c != EOF &&
@@ -187,7 +192,7 @@ Token* word_handler (char* word)
 Token* digit_handler (int c, FILE* fptr) 
 //@requires isdigit (c);
 {
-	char* number = malloc (MAX_WORD_LEN);
+	char* number = malloc (sizeof (char) * MAX_WORD_LEN);
 	int i = 0;
 	
 	while (c != EOF && isdigit (c)) {
@@ -250,7 +255,7 @@ Token* switch_handler (int c, FILE* fptr)
 		case '-' :
 			c = fgetc (fptr);
 			if (c == '>') {
-				t->type = TOK_FN_TYPE;
+				t->type = TOK_ARROW_TYPE;
 			} else {
 				ungetc (c, fptr);
 				t->type = TOK_MINUS;
@@ -279,37 +284,6 @@ Token* switch_handler (int c, FILE* fptr)
 	return t;
 }
 // ========================================================================= //
-
-Token* peek_token (FILE* fptr)
-{
-	int c = fgetc (fptr);
-	if (c == EOF) {
-		printf ("EOF\n");
-		return NULL;
-	}
-	Token* t;
-	//printf ("debug char (next_token): %c\n", (char) c);
-	
-	if (c == '#') {
-	// Skips comments
-		t = comment_handler (c, fptr);
-	} else if (isspace (c)){
-	// Skips spaces
-		t = next_token (fptr);
-	}else if (isalpha (c) || c == '_') {
-	// Finds alphabet or underscore, hands off to helper handler
-		t = alpha_handler (c, fptr);
-	} else if (isdigit (c)) {
-	// Finds digits, hands off to digit handler
-		t = digit_handler (c, fptr);
-	} else {
-	// Last case, hand off to the character switch case
-		t = switch_handler (c, fptr);
-	}
-	ungetc (c, fptr);
-
-	return t;
-}
 
 
 // ========================================================================= //
@@ -348,8 +322,11 @@ Stream* new_stream (FILE* fptr)
 	Stream* S = malloc (sizeof (Stream));
 	if (!S) perror ("yo wtf stream dawg\n");
 	S->fptr = fptr;
-	S->prev_token = TOK_START;
+	Token* start = malloc (sizeof (Token));
+	start->type = TOK_START;
+	S->prev_token = start;
 	S->curr_token = next_token (S->fptr);
+	S->next_token = next_token (S->fptr);
 	return S;
 }
 
@@ -365,12 +342,21 @@ Token* stream_curr (Stream* S)
 
 Token* stream_peek (Stream* S)
 {
-	return peek_token (S->fptr);
+	return S->next_token;
 }
 
 Token* stream_next (Stream* S)
 {
-	return next_token (S->fptr);
+	Token* prev = S->prev_token;
+	if (prev->lexeme != NULL) {
+		free (prev->lexeme);
+	}
+	free (prev);
+
+	S->prev_token = S->curr_token;
+	S->curr_token = S->next_token;
+	S->next_token = next_token (S->fptr);
+	return S->curr_token;
 }
 
 bool is_stream_end (Stream* S)
