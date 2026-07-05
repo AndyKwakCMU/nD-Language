@@ -28,8 +28,10 @@ typedef struct Type Type;
 typedef enum {
         INT,
         CHAR,
+        BOOL,
         INT_MUT,
-        CHAR_MUT
+        CHAR_MUT,
+        BOOL_MUT
 } Base_Type;
 
 typedef struct Type_Tree Type_Tree;
@@ -77,9 +79,23 @@ typedef struct Glo_User_Types {
 // Variable Implementation
 typedef struct Value Value;
 
+typedef struct User_Var User_Var;
+
+typedef struct User_Val {
+        char* cont_name;
+        Value* cont_val;
+} User_Val;
+
+struct User_Var {
+        char* struct_name;
+        User_Val** struct_types;
+        size_t num_struct;
+        size_t struct_cap;
+};
+
 typedef struct Closure {
         void* function_ptr;
-        Value** env; // Array of variables the function has access to
+        Var_List* env; // Array of variables the function has access to
 } Closure;
 
 struct Value {
@@ -88,7 +104,11 @@ struct Value {
 
                 char character;
 
+                bool boolean;
+
                 Value* pointer;
+
+                User_Var* user;
 
                 Closure closure;
         } as;
@@ -127,6 +147,9 @@ typedef enum {
         // Loop block
         NODE_LOOP,
 
+        // Conditional Block
+        NODE_COND, 
+
         // Recursively defined body block
         NODE_BODY
 } Node_Kind;
@@ -152,6 +175,12 @@ typedef struct {
         Astn* arg;
 } Urnary_Expr;
 
+typedef struct Var_List {
+        Var** variables;
+        size_t num_var;
+        size_t var_cap;
+} Var_List;
+
 typedef struct {
         Astn** inst; // instructions, UBA of ast, L->R order
         size_t num_inst;
@@ -165,9 +194,7 @@ typedef struct {
         // scopes where the compiler really can't mess up where a pointer's scope ends.
 
         // Thus each body has the capabilities to declare its own variables
-        Var**  var; 
-        size_t num_var;
-        size_t var_cap;
+        Var_List* vars;
 } Body_Block;
 
 typedef struct {
@@ -175,13 +202,26 @@ typedef struct {
         Body_Block* body;
 } Loop_Expr;
 
+typedef struct Cond_Expr Cond_Expr;
+struct Cond_Expr {
+        enum {
+                IF,
+                ELSEIF,
+                ELSE
+        } kind;
+        Binary_Expr* cond;
+        Body_Block* body;
+        // LL approach
+        Cond_Expr* chain;
+};
+
 typedef struct Fun_Type {
         char* fun_name;
         Type* ret_type;
 
-        Var** params; // UBA
-        size_t num_param;
-        size_t param_cap;
+        Var_List** variables;
+        size_t num_var;
+        size_t var_cap;
 
         Body_Block* body;
 } Fun_Type;
@@ -189,9 +229,7 @@ typedef struct Fun_Type {
 typedef struct Fun_Call {
         char* fun_name;
 
-        Var** args; // UBA
-        size_t num_args;
-        size_t args_cap;
+        Var_List* vars;
 } Fun_Call;
 
 struct AST_Node {
@@ -201,6 +239,7 @@ struct AST_Node {
                 Binary_Expr*  binary;
                 Urnary_Expr*  urnary;
                 Loop_Expr*    loop;
+                Cond_Expr*    cond;
                 Fun_Type*     fun_dec;
                 Fun_Call*     fun_call;
                 Body_Block*   body_block;
@@ -216,20 +255,54 @@ typedef struct {
 // ========================================================================= //
 
 
+
+// Helper functions so I dont lose hair
+// new_struct  ()
+// struct_add  ()
+// in_struct   ()
+// get_struct  ()
+// free_struct ()
 // ========================================================================= //
 // User types implementation
 GUser_Types* new_GUser ();
 void GUser_add (GUser_Types* G, User_Type* U);
-bool in_GUser (GUser_Types* G, char* name);
+bool isin_GUser (GUser_Types* G, char* name);
 User_Type* get_GUser (GUser_Types* G, char* name);
 
 // ========================================================================= //
-void fun_param_add (Fun_Type*, Var* v);
+Var_List* new_varlist ();
+
+void varlist_add (Var_List* L, Var* var);
+
+bool isin_varlist (Var_List* F, char* name);
+
+Var* varlist_get_var (Var_List* F, char* name);
+
+void varlist_free (Var_List* L);
+
+// ========================================================================= //
+bool isin_fun_varlist (Fun_Type* F, char* name);
+
+Var* fun_varlist_get_var (Fun_Type*, char* name);
+
+// ========================================================================= //
+Body_Block* new_body ();
+
+void body_add_inst (Body_Block* B, Astn* inst);
+
+void body_add_var (Body_Block* B, Var* v);
+
+Var_List* body_get_varlist (Body_Block* B);
+
+// ========================================================================= //
+void fun_add_param (Fun_Type* F, Var* v);
 
 
 AST_Program* new_Program ();
 void program_add_fun (AST_Program* A, Fun_Type* fun);
-void program_get_fun (AST_Program* A, char* name);
+bool isin_program_fun (AST_Program* A, char* name);
+Fun_Type* program_get_fun (AST_Program* A, char* name);
+
 
 // ========================================================================= //
 

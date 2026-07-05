@@ -176,7 +176,258 @@ Type* type_handler (GUser_Types* G, Stream* S)
 
 // ========================================================================= //
 // Modular code for handling function body
-Astn** fun_body_handler (AST_Program* A, Stream* S);
+// Forward declaration
+Body_Block* body_handler (AST_Program* A, GUser_Types* G, 
+                          Fun_Type* fun, Stream* S);
+
+Literal_Expr* literal_expr_handler (AST_Program* A, GUser_Types* G, 
+                                    Fun_Type* fun, Stream* S)
+{
+
+}
+
+int binary_expr_nud (GUser_Types* G, TokenType t)
+{
+
+}
+
+int binary_expr_led (GUser_Types* G, TokenType t)
+{
+
+}
+
+Astn* binexp_help (AST_Program* A, GUser_Types* G, 
+                   Fun_Type* F, Stream* S, int rbp)
+{
+        Token* curr_tok = stream_next(S);
+        TokenType curr_type = curr_tok->type;
+        Astn* left_node = NULL;
+
+        // nud conditionals
+        if (curr_type == TOK_LPAREN) { 
+                left_node = binexp_help (A, G, F, S, 0);
+                if (stream_next(S)->type != TOK_RPAREN) {
+                        perror ("binary expression missing RPAREN");
+                        exit (EXIT_FAILURE);
+                }
+        } else {
+                binary_expr_nud (G, curr_tok);
+                left_node = malloc (sizeof (Astn));
+                if (curr_type == TOK_INT_LITERAL) {
+                        // number
+
+                } else if (curr_type == TOK_IDENTIFIER) {
+                        // variable or function call
+
+                } else {
+                        // syntax error
+                }
+        }
+
+        // led loop
+        int lbp = binary_expr_led (G, stream_peek(S));
+        while (rbp < lbp) {
+                
+        }
+}
+
+Binary_Expr* binary_expr_handler (AST_Program* A, GUser_Types* G, 
+                                  Fun_Type* fun, Stream* S)
+{
+        Astn* node = binexp_help (A, G, fun, S, 0);
+        Binary_Expr* ret = node->data.binary;
+        free (node);
+        return ret;
+}
+
+Astn* body_cond_handler (AST_Program* A, GUser_Types* G, 
+                         Fun_Type* fun, Stream* S)
+{
+        Astn* node = malloc (sizeof (Astn));
+        node->kind = NODE_COND;
+        Cond_Expr* cond = malloc (sizeof (Cond_Expr));
+
+        TokenType curr_type = stream_curr(S)->type;
+        if (curr_type == TOK_IF) {
+                cond->kind = IF;
+                curr_type = stream_next(S)->type;
+                if (curr_type != TOK_LPAREN) {
+                        perror ("conditional not following parenthesis");
+                        exit (EXIT_FAILURE);
+                }
+                cond->cond = binary_expr_handler (A, G, fun, S);
+                curr_type = stream_next(S)->type;
+                if (curr_type != TOK_RPAREN) {
+                        perror ("conditional not closed by parenthesis");
+                        exit (EXIT_FAILURE);
+                }
+                cond->body = body_handler (A, G, fun, S);
+        } 
+        curr_type = stream_next(S)->type;
+        Cond_Expr* curr_pt = cond;
+        while (curr_type == TOK_ELSEIF) {
+                Cond_Expr* new = malloc (sizeof (Cond_Expr));
+                new->kind = ELSEIF;
+                if (curr_type != TOK_LPAREN) {
+                        perror ("conditional not following parenthesis");
+                        exit (EXIT_FAILURE);
+                }
+                new->cond = binary_expr_handler (A, G, fun, S);
+                if (curr_type != TOK_RPAREN) {
+                        perror ("conditional not closed by parenthesis");
+                        exit (EXIT_FAILURE);
+                }
+                new->body = body_handler (A, G, fun, S);
+                curr_pt->chain = new;
+                curr_pt = new;
+                curr_type = stream_next(S)->type;
+        }
+
+        if (curr_type == TOK_ELSE) {
+                Cond_Expr* new = malloc (sizeof (Cond_Expr));
+                new->kind = ELSE;
+                if (curr_type != TOK_LPAREN) {
+                        perror ("conditional not following parenthesis");
+                        exit (EXIT_FAILURE);
+                }
+                new->cond = binary_expr_handler (A, G, fun, S);
+                if (curr_type != TOK_RPAREN) {
+                        perror ("conditional not closed by parenthesis");
+                        exit (EXIT_FAILURE);
+                }
+                new->body = body_handler (A, G, fun, S);
+                new->chain = NULL;
+                curr_pt->chain = new;
+        }
+
+        // Should be a null/ELSE-kind terminated linked list
+
+        node->data.cond = cond;
+        return node;
+}
+
+Astn* body_loop_handler (AST_Program* A, GUser_Types* G, 
+                         Fun_Type* fun, Stream* S)
+{
+        Astn* node = malloc (sizeof (Astn));
+        node->kind = NODE_LOOP;
+        Loop_Expr* loop = malloc (sizeof (Loop_Expr));
+
+        loop->cond = binary_expr_handler(A, G, fun, S);
+        loop->body = body_handler (A, G, fun, S);
+
+        node->data.loop = loop;
+        return node;
+}
+
+Astn* body_idt_handler (AST_Program* A, GUser_Types* G, 
+                       Fun_Type* fun, Stream* S)
+{
+        char* idt_name = stream_curr(S)->lexeme;
+        if (isin_fun_varlist (fun, idt_name)) {
+                // the identifier is a variable
+                
+        } else if (program_search_fun(A, idt_name)) {
+                // the identifier is a function
+
+        } else {
+                perror ("undefined identifier\n");
+                exit (EXIT_FAILURE);
+        }
+}
+
+Body_Block* body_handler (AST_Program* A, GUser_Types* G, 
+                              Fun_Type* fun, Stream* S)
+{
+        Body_Block* B = new_body ();
+        TokenType curr_type = stream_curr (S);
+
+        // Square brace variable declaration body stuff
+        if (curr_type == TOK_RSBRACE) {
+                curr_type = stream_next(S)->type;
+                while (curr_type == TOK_IDENTIFIER) {
+                        // Declare new variables
+                        Var* variable = malloc (sizeof (Var));
+
+                        // Name of variable
+                        variable->name = strdup((stream_curr(S))->lexeme);
+                        
+                        // Now looking for colon
+                        curr_type = (stream_next (S))->type;
+                        if (curr_type != TOK_COLON) {
+                                perror ("Didn't declare type of variable\n");
+                                exit (EXIT_FAILURE);
+                        }
+
+                        // Now looking for type
+                        variable->type = type_handler (G, S);
+
+                        variable->value = value_handler (G, fun, S);
+
+                        body_add_var (B, variable);
+
+                        if (stream_peek(S)->type == TOK_SEMICOLON) {
+                                stream_next (S);
+                        }
+                        curr_type = (stream_next(S))->type;
+                }
+        }
+        program_add_varlist (A, body_get_varlist(B));
+        
+
+
+        if (stream_curr(S)->type != TOK_LBRACE) {
+                perror ("Body not declared!\n");
+                exit (EXIT_FAILURE);
+        }
+
+        // Actual logic and computation inside braces
+        curr_type = stream_next(S)->type;
+
+
+        while (curr_type != TOK_RBRACE) {
+                if (curr_type == TOK_IF) {
+                        // Conditional Handler
+                        Astn* node = body_cond_handler (A, G, fun, S);
+                        body_add_inst (B, node);
+                } else if (curr_type == TOK_WHILE) {
+                        // Loop Handler
+                        Astn* node = body_loop_handler (A, G, fun, S);
+                        body_add_inst (B, node);
+                } else if (curr_type == TOK_IDENTIFIER) {
+                        // Can either be variable mutation,
+                        // variable Assignment,function call,
+                        // struct mutation, etc.
+                        char* idt_name = stream_curr(S)->lexeme;
+                        if (!idt_name) {
+                                perror ("identifier token missing lexeme\n");
+                                exit (EXIT_FAILURE);
+                        }
+                        Astn* node = body_idt_handler (A, G, fun, S);
+                        body_add_inst (B, node);
+                } else if (curr_type == TOK_LSBRACE) {
+                        // New Body declaration, with new variables for its scope
+                        Astn* node = malloc (sizeof (Astn));
+                        node->kind = NODE_BODY;
+                        node->data.body_block = body_handler (A, G, fun, S);
+                        body_add_inst (B, node);
+                } else if (curr_type == TOK_LBRACE) {
+                        // New Body declaration, no new variables
+                        Astn* node = malloc (sizeof (Astn));
+                        node->kind = NODE_BODY;
+                        node->data.body_block = body_handler (A, G, fun, S);
+                        body_add_inst (B, node);
+                } else {
+                        perror ("Something went wrong in the body\n");
+                        exit (EXIT_FAILURE);
+                }
+                // All of these cases should end at }
+                curr_type = stream_next(S)->type;
+        }
+
+
+        return B;
+}
 
 
 // ========================================================================= //
@@ -206,10 +457,7 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
         }
 
         // initializing parameters
-        curr_type = (stream_next (S))->type;
-        fun->num_param = 0;
-        fun->param_cap = 4;
-        fun->params = malloc (sizeof (Var*) * fun->param_cap);
+        fun->variables = new_varlist ();
 
         // now expecting either a bunch of arguments or right parenthesis
         while (curr_type == TOK_IDENTIFIER) {
@@ -232,7 +480,7 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
                 // Now looking for type
                 variable->type = type_handler (G, S);
 
-                fun_param_add (fun, variable);
+                fun_add_param (fun, variable);
 
                 if (stream_peek(S)->type == TOK_COMMA) {
                         stream_next (S);
@@ -258,7 +506,7 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
         fun->ret_type = type_handler (G, S);
 
         // TODO: pass onto handling the body
-        //fun->body = body_handler (A, S);
+        fun->body = body_handler (A, G, fun, S);
 
 
         program_add_fun (A, fun);

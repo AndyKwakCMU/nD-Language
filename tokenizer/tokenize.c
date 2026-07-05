@@ -177,6 +177,14 @@ Token* word_handler (char* word)
 		t->type = TOK_CHAR_TYPE;
 	} else if (strcmp (word, "char$") == 0) {
 		t->type = TOK_CHAR_MUT_TYPE;
+	} else if (strcmp (word, "bool") == 0) {
+		t->type = TOK_BOOL_TYPE;
+	} else if (strcmp (word, "bool$") == 0) {
+		t->type = TOK_BOOL_MUT_TYPE;
+	} else if (strcmp (word, "true") == 0) {
+		t->type = TOK_BOOL_TRUE;
+	} else if (strcmp (word, "false") == 0) {
+		t->type = TOK_BOOL_FALSE;
 	} else if (strcmp (word, "none") == 0) {
 		t->type = TOK_NONE_TYPE;	
 	} else {

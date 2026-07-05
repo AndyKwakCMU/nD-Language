@@ -77,23 +77,160 @@ User_Type* get_GUser (GUser_Types* G, char* name)
 }
 
 // ========================================================================= //
-
-
-// ========================================================================= //
-void fun_param_add (Fun_Type* fun, Var* v)
+Var_List* new_varlist ()
 {
-        fun->params[(fun->num_param)++] = v;
-        if (fun->num_param == fun->param_cap) {
-                fun->param_cap = fun->param_cap * 2;
-                Var** new = malloc (sizeof (Var*) * fun->param_cap);
-                
+        Var_List* L = malloc (sizeof (Var_List));
+        if (!L) {
+                perror ("variable list struct allocation failure\n");
+                exit (EXIT_FAILURE);
+        }
+
+        L->num_var = 0;
+        L->var_cap = 4;
+        L->variables = malloc (sizeof (Var*) * L->var_cap);
+        
+        if (!L->variables) {
+                perror ("variable list allocation failure\n");
+                exit (EXIT_FAILURE);
+        }
+
+
+        return L;
+}
+
+void varlist_add (Var_List* L, Var* var)
+{
+        L->variables[L->num_var] = var;
+        (L->num_var)++;
+
+        if (L->num_var == L->var_cap) {
                 size_t i = 0;
-                while (i < fun->num_param) {
-                        new[i] = fun->params[i];
+                size_t cap = L->var_cap * 2;
+                Var** new = malloc (sizeof (Var*) * cap);
+
+                while (i < cap) {
+                        new[i] = L->variables[i];
                         i++;
                 }
-                free (fun->params);
-                fun->params = new;
+
+                free (L->variables);
+                L->variables = new;
+                L->var_cap = cap;
+        }
+}
+
+// ========================================================================= //
+Body_Block* new_body ()
+{
+        Body_Block* B = malloc (sizeof (Body_Block));
+        if (!B) {
+                perror ("body allocation failure\n");
+                exit (EXIT_FAILURE);
+        }
+
+        B->num_inst = 0;
+        B->inst_cap = 4;
+        B->inst = malloc (sizeof (Astn*) * B->inst_cap);
+        if (!B->inst) {
+                perror ("instructions list allocation error\n");
+                exit (EXIT_FAILURE);
+        }
+
+
+}
+
+void body_add_var (Body_Block* B, Var* v)
+{
+        varlist_add (B->vars, v);
+}
+
+Var_List* body_get_varlist (Body_Block* B)
+{
+        return B->vars;
+}
+
+bool varlist_search (Fun_Type* F, char* name)
+{
+        if (varlist_get_var (F, name) != NULL) {
+                return true;
+        } else {
+                return false;
+        }
+}
+
+Var* varlist_get_var (Fun_Type* F, char* name)
+{
+        size_t i = 0;
+        size_t j = 0;
+        while (i < F->num_var) {
+                Var_List* curr = F->variables[i];
+                
+                while (j < curr->num_var) {
+                        Var* curr_var = curr->variables[j];
+                        char* curr_name = curr_var->name;
+
+                        if (strcmp(name, curr_name) == 0) {
+                                return curr_var;
+                        }
+                        j++;
+                }
+                i++;
+        }
+        return NULL;
+}
+
+// ========================================================================= //
+Fun_Type* new_fun (char* name)
+{
+        Fun_Type* F = malloc (sizeof (Fun_Type));
+        if (!F) {
+                perror ("function allocation failed\n");
+                exit (EXIT_FAILURE);
+        }
+
+        F->fun_name = name;
+
+        F->num_var = 1; // parameters are always index 0
+        F->var_cap = 4;
+        F->variables = malloc (sizeof (Var_List*) * F->var_cap);
+        
+        if (!F->variables) {
+                perror ("function variable list allocation failed\n");
+                exit (EXIT_FAILURE);
+        }
+
+        return F;
+}
+
+void fun_param_add (Fun_Type* F, Var* v)
+{
+        varlist_add (F->variables[0], v);
+}
+
+void fun_var_dec_add (Fun_Type* F, Var_List* L)
+{
+        // L can be NULL
+        F->variables[F->num_var] = L;
+        F->num_var++;
+
+        if (F->num_var == F->var_cap) {
+                size_t i = 0;
+                size_t n = F->num_var;
+                size_t cap = F->var_cap * 2;
+                Var_List** new = malloc (sizeof (Var_List*) * cap);
+                if (!new) {
+                        perror ("new fun variable list allocation failed\n");
+                        exit (EXIT_FAILURE);
+                }
+
+                while (i < n) {
+                        new[i] = F->variables[i];
+                        i++;
+                }
+
+                free (F->variables);
+                F->variables = new;
+                F->var_cap = cap;
         }
 }
 
@@ -110,6 +247,10 @@ AST_Program* new_Program ()
         A->function_count = 1;
         A->capacity = 4;
         A->functions = malloc (sizeof (Astn*) * A->capacity);
+        if (!A->functions) {
+                perror ("program function list allocation fail\n");
+                exit (EXIT_FAILURE);
+        }
         A->functions[0] = NULL;
 
         return A;
@@ -154,5 +295,8 @@ void program_add_fun (AST_Program* A, Fun_Type* fun)
                 }
         }
 }
+
+Fun_Type* program_get_fun (AST_Program* A, char* name);
+
 
 // ========================================================================= //
