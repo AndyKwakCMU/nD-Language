@@ -28,10 +28,8 @@ typedef struct Type Type;
 typedef enum {
         INT,
         CHAR,
-        BOOL,
         INT_MUT,
-        CHAR_MUT,
-        BOOL_MUT
+        CHAR_MUT
 } Base_Type;
 
 typedef struct Type_Tree Type_Tree;
@@ -104,8 +102,6 @@ struct Value {
 
                 char character;
 
-                bool boolean;
-
                 Value* pointer;
 
                 User_Var* user;
@@ -157,10 +153,15 @@ typedef enum {
 typedef struct AST_Node Astn;
 
 typedef struct {
-        Type* type;
+        enum {
+                INT,
+                CHAR,
+                VAR
+        } type;
         union {
                 int int_val;
                 char char_val;
+                Var* var;
         } value;
 } Literal_Expr;
 
@@ -173,7 +174,7 @@ typedef struct {
 typedef struct {
         char op;
         Astn* arg;
-} Urnary_Expr;
+} Unary_Expr;
 
 typedef struct Var_List {
         Var** variables;
@@ -198,7 +199,7 @@ typedef struct {
 } Body_Block;
 
 typedef struct {
-        Binary_Expr* cond;
+        Astn* cond;
         Body_Block* body;
 } Loop_Expr;
 
@@ -209,7 +210,7 @@ struct Cond_Expr {
                 ELSEIF,
                 ELSE
         } kind;
-        Binary_Expr* cond;
+        Astn* cond;
         Body_Block* body;
         // LL approach
         Cond_Expr* chain;
@@ -237,7 +238,7 @@ struct AST_Node {
         union {
                 Literal_Expr* literal;
                 Binary_Expr*  binary;
-                Urnary_Expr*  urnary;
+                Unary_Expr*  unary;
                 Loop_Expr*    loop;
                 Cond_Expr*    cond;
                 Fun_Type*     fun_dec;
@@ -274,16 +275,16 @@ Var_List* new_varlist ();
 
 void varlist_add (Var_List* L, Var* var);
 
-bool isin_varlist (Var_List* F, char* name);
+bool isin_varlist (Var_List* V, char* name);
 
-Var* varlist_get_var (Var_List* F, char* name);
+Var* varlist_get_var (Var_List* V, char* name);
 
 void varlist_free (Var_List* L);
 
 // ========================================================================= //
 bool isin_fun_varlist (Fun_Type* F, char* name);
 
-Var* fun_varlist_get_var (Fun_Type*, char* name);
+Var* fun_varlist_get_var (Fun_Type* F, char* name);
 
 // ========================================================================= //
 Body_Block* new_body ();

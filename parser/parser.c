@@ -178,25 +178,52 @@ Type* type_handler (GUser_Types* G, Stream* S)
 // Modular code for handling function body
 // Forward declaration
 Body_Block* body_handler (AST_Program* A, GUser_Types* G, 
-                          Fun_Type* fun, Stream* S);
+                          Fun_Type* F, Stream* S);
 
-Literal_Expr* literal_expr_handler (AST_Program* A, GUser_Types* G, 
-                                    Fun_Type* fun, Stream* S)
+Astn* fun_call_handler (AST_Program* A, GUser_Types* G, 
+                        Fun_Type* F, Stream* S)
 {
+        // TODO
 
 }
 
-int binary_expr_nud (GUser_Types* G, TokenType t)
-{
+/*
+        expr_nud table
+        highest to lowest
+        
+        2: *, -  (ptr deref and negative sign)
+        0: literal, identifier
 
+
+        expr_led table
+
+        2: ->, . (pointer access)
+        1: *, /  
+        0: +, -
+*/
+
+int expr_led (TokenType t)
+{
+        switch (t) {
+                case TOK_ARROW_TYPE :
+                        return 5;
+                case TOK_DOT :
+                        return 5;
+                case TOK_STAR :
+                        return 3;
+                case TOK_SLASH :
+                        return 3;
+                case TOK_PLUS :
+                        return 1;
+                case TOK_MINUS :
+                        return 1;
+                case TOK_RPAREN :
+                        return -1;
+        }
+        return -1;
 }
 
-int binary_expr_led (GUser_Types* G, TokenType t)
-{
-
-}
-
-Astn* binexp_help (AST_Program* A, GUser_Types* G, 
+Astn* expr_help (AST_Program* A, GUser_Types* G, 
                    Fun_Type* F, Stream* S, int rbp)
 {
         Token* curr_tok = stream_next(S);
@@ -211,33 +238,88 @@ Astn* binexp_help (AST_Program* A, GUser_Types* G,
                         exit (EXIT_FAILURE);
                 }
         } else {
-                binary_expr_nud (G, curr_tok);
                 left_node = malloc (sizeof (Astn));
+                if (!left_node) {
+                        perror ("astn node allocation fail in binexp_help\n");
+                        exit (EXIT_FAILURE);
+                }
+
                 if (curr_type == TOK_INT_LITERAL) {
                         // number
-
+                        int val = atoi (curr_tok->lexeme);
+                        left_node->kind = NODE_LITERAL;
+                        left_node->data.literal->type = INT;
+                        left_node->data.literal->value.int_val = val;
                 } else if (curr_type == TOK_IDENTIFIER) {
                         // variable or function call
-
+                        if (isin_fun_varlist (F, curr_tok->lexeme)) {
+                                // Identifier is a variable
+                                left_node->kind = NODE_LITERAL;
+                                left_node->data.literal->type = VAR;
+                                left_node->data.literal->value.var = (
+                                        fun_varlist_get_var (F, curr_tok->lexeme));
+                        } else if (isin_program_fun (A, curr_tok->lexeme)) {
+                                // Identifier is a function call
+                                fun_call_handler (A, G, F, S);
+                        } else {
+                                // syntax error
+                                // TODO
+                        }
+                } else if (curr_type == TOK_MINUS) {
+                        // negative sign
+                        left_node->kind = NODE_UNARY_EXPR;
+                        left_node->data.unary->op = TOK_MINUS;
+                        left_node->data.unary->arg = expr_help (A, G, F, S, 4);
+                } else if (curr_type == TOK_STAR) {
+                        // pointer deference
+                        left_node->kind = NODE_UNARY_EXPR;
+                        left_node->data.unary->op = TOK_STAR;
+                        Astn* ptr = left_node;
+                        while (stream_peek(S)->type == TOK_STAR) {
+                                Astn* new = malloc (sizeof (Astn));
+                                new->kind = NODE_UNARY_EXPR;
+                                new->data.unary->op = '*';
+                                ptr->data.unary->arg = new;
+                                ptr = new;
+                                stream_next (S);
+                        }
+                        curr_tok = stream_next (S);
+                        curr_type = curr_tok->type;
+                        ptr->data.unary->arg = expr_help (A, G, F, S, 4);
                 } else {
                         // syntax error
+                        // TODO
                 }
         }
 
         // led loop
-        int lbp = binary_expr_led (G, stream_peek(S));
+        int lbp = binary_expr_led (stream_peek(S));
         while (rbp < lbp) {
-                
+                curr_tok = stream_next (S);
+                curr_type = curr_tok->type;
+
+                Astn* new = malloc (sizeof (Astn));
+                if (!new) {
+                        perror ("astn node allocation fail in binexp_help\n");
+                        exit (EXIT_FAILURE);
+                }
+
+                new->kind = NODE_BINARY_EXPR;
+                new->data.binary->op = curr_tok;
+
+                new->data.binary->left = left_node;
+                new->data.binary->right = binexp_help (A, G, F, S, lbp);
+                left_node = new;
+                lbp = binary_expr_led (stream_peek(S));
         }
+
+        return left_node;
 }
 
-Binary_Expr* binary_expr_handler (AST_Program* A, GUser_Types* G, 
+Astn* expr_handler (AST_Program* A, GUser_Types* G, 
                                   Fun_Type* fun, Stream* S)
 {
-        Astn* node = binexp_help (A, G, fun, S, 0);
-        Binary_Expr* ret = node->data.binary;
-        free (node);
-        return ret;
+        return expr_help (A, G, fun, S, 0);
 }
 
 Astn* body_cond_handler (AST_Program* A, GUser_Types* G, 
@@ -255,7 +337,7 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                         perror ("conditional not following parenthesis");
                         exit (EXIT_FAILURE);
                 }
-                cond->cond = binary_expr_handler (A, G, fun, S);
+                cond->cond = expr_handler (A, G, fun, S);
                 curr_type = stream_next(S)->type;
                 if (curr_type != TOK_RPAREN) {
                         perror ("conditional not closed by parenthesis");
@@ -272,7 +354,7 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                         perror ("conditional not following parenthesis");
                         exit (EXIT_FAILURE);
                 }
-                new->cond = binary_expr_handler (A, G, fun, S);
+                new->cond = expr_handler (A, G, fun, S);
                 if (curr_type != TOK_RPAREN) {
                         perror ("conditional not closed by parenthesis");
                         exit (EXIT_FAILURE);
@@ -290,7 +372,7 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                         perror ("conditional not following parenthesis");
                         exit (EXIT_FAILURE);
                 }
-                new->cond = binary_expr_handler (A, G, fun, S);
+                new->cond = expr_handler (A, G, fun, S);
                 if (curr_type != TOK_RPAREN) {
                         perror ("conditional not closed by parenthesis");
                         exit (EXIT_FAILURE);

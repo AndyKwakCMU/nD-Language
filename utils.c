@@ -95,10 +95,6 @@ char* tokenType2string (TokenType type)
                         return "TOK_IDENTIFIER";
                 case TOK_INT_LITERAL :
                         return "TOK_INT_LITERAL";
-		case TOK_BOOL_TRUE :
-			return "TOK_BOOL_TRUE";
-		case TOK_BOOL_FALSE :
-			return "TOK_BOOL_FALSE";
                 case TOK_FN :
                         return "TOK_FN";
                 case TOK_LAMBDA :
@@ -117,10 +113,6 @@ char* tokenType2string (TokenType type)
                         return "TOK_CHAR_TYPE";
                 case TOK_CHAR_MUT_TYPE :
                         return "TOK_CHAR_MUT_TYPE";
-		case TOK_BOOL_TYPE :
-			return "TOK_BOOL_TYPE";
-		case TOK_BOOL_MUT_TYPE :
-			return "TOK_BOOL_MUT_TYPE";
                 case TOK_LPAREN : 
                         return "TOK_LPAREN";
                 case TOK_RPAREN :
@@ -139,6 +131,8 @@ char* tokenType2string (TokenType type)
                         return "TOK_COMMA";
                 case TOK_SEMICOLON :
                         return "TOK_SEMICOLON";
+		case TOK_DOT :
+			return "TOK_DOT";
                 case TOK_IF :
                         return "TOK_IF";
                 case TOK_ELSEIF :

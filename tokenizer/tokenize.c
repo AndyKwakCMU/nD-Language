@@ -177,14 +177,6 @@ Token* word_handler (char* word)
 		t->type = TOK_CHAR_TYPE;
 	} else if (strcmp (word, "char$") == 0) {
 		t->type = TOK_CHAR_MUT_TYPE;
-	} else if (strcmp (word, "bool") == 0) {
-		t->type = TOK_BOOL_TYPE;
-	} else if (strcmp (word, "bool$") == 0) {
-		t->type = TOK_BOOL_MUT_TYPE;
-	} else if (strcmp (word, "true") == 0) {
-		t->type = TOK_BOOL_TRUE;
-	} else if (strcmp (word, "false") == 0) {
-		t->type = TOK_BOOL_FALSE;
 	} else if (strcmp (word, "none") == 0) {
 		t->type = TOK_NONE_TYPE;	
 	} else {
@@ -279,9 +271,29 @@ Token* switch_handler (int c, FILE* fptr)
 			c = fgetc (fptr);
 			if (c == '>') {
 				t->type = TOK_MATCH_ARROW;
-			}else {
+			} else if (c == '=') {
+				t->type = TOK_EQ;
+			} else {
 				ungetc (c, fptr);
 				t->type = TOK_ASSIGN;
+			}
+			break;
+		case '<' :
+			c = fgetc (fptr);
+			if (c == '=') {
+				t->type = TOK_LEQ;
+			} else {
+				ungetc (c, fptr);
+				t->type = TOK_LT;
+			}
+			break;
+		case '>' :
+			c = fgetc (fptr);
+			if (c == '=') {
+				t->type = TOK_GEQ;
+			} else {
+				ungetc (c, fptr);
+				t->type = TOK_GT;
 			}
 			break;
 		default:
