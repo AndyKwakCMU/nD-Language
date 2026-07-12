@@ -48,7 +48,7 @@ int type_nud_lookup (GUser_Types* G, Token* tok)
                         return 0;
                         break;
                 case TOK_IDENTIFIER :
-                        if (in_GUser (G, tok->lexeme)) {
+                        if (isin_GUser (G, tok->lexeme)) {
                                 return 0;
                         } else {
                                 perror ("Undeclared type used");
@@ -180,11 +180,48 @@ Type* type_handler (GUser_Types* G, Stream* S)
 Body_Block* body_handler (AST_Program* A, GUser_Types* G, 
                           Fun_Type* F, Stream* S);
 
-Astn* fun_call_handler (AST_Program* A, GUser_Types* G, 
-                        Fun_Type* F, Stream* S)
-{
-        // TODO
+Astn* expr_handler (AST_Program* A, GUser_Types* G, 
+                    Fun_Type* fun, Stream* S);
 
+
+Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G, 
+                            Fun_Type* F, Stream* S)
+{
+        char* name = strdup (stream_curr(S)->lexeme);
+        Fun_Call* C = malloc (sizeof (Fun_Call));
+        C->fun_name = name;
+        
+
+        // function name should be followed by parenthesis and args
+        if (stream_next(S)->type != TOK_LPAREN) {
+                // syntax error
+                // TODO
+
+        }
+
+
+        while (stream_peek(S)->type != TOK_RPAREN) {
+                // expr_handler will keep going through tokens until it hits
+                // the seperating commas, which then will come back here and
+                // be added to the arguments. 
+                call_add_arg (C, expr_handler (A, G, F, S));
+
+                if (stream_curr(S)->type != TOK_COMMA) {
+                        // Syntax error
+                        printf ("Syntax error in function call arguments");
+                        exit (EXIT_FAILURE);
+                }
+                stream_next(S);
+        }
+
+        if (stream_curr(S)->type != TOK_RPAREN) {
+                // function arg not closed, syntax error
+                printf ("Function call not clsoed\n");
+                exit (EXIT_FAILURE);
+        }
+
+
+        return C;
 }
 
 /*
@@ -206,25 +243,40 @@ int expr_led (TokenType t)
 {
         switch (t) {
                 case TOK_ARROW_TYPE :
-                        return 5;
+                        return 7;
                 case TOK_DOT :
-                        return 5;
+                        return 7;
                 case TOK_STAR :
-                        return 3;
+                        return 6;
                 case TOK_SLASH :
-                        return 3;
+                        return 6;
                 case TOK_PLUS :
-                        return 1;
+                        return 5;
                 case TOK_MINUS :
+                        return 5;
+                case TOK_EQ :
+                        return 4;
+                case TOK_LT :
+                        return 4;
+                case TOK_LEQ :
+                        return 4;
+                case TOK_GT :
+                        return 4;
+                case TOK_GEQ :
+                        return 4;
+                case TOK_AND :
+                        return 3;
+                case TOK_OR :
+                        return 2;
+                case TOK_ASSIGN :
                         return 1;
-                case TOK_RPAREN :
+                default :
                         return -1;
         }
-        return -1;
 }
 
 Astn* expr_help (AST_Program* A, GUser_Types* G, 
-                   Fun_Type* F, Stream* S, int rbp)
+                 Fun_Type* F, Stream* S, int rbp)
 {
         Token* curr_tok = stream_next(S);
         TokenType curr_type = curr_tok->type;
@@ -232,7 +284,7 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
 
         // nud conditionals
         if (curr_type == TOK_LPAREN) { 
-                left_node = binexp_help (A, G, F, S, 0);
+                left_node = expr_help (A, G, F, S, 0);
                 if (stream_next(S)->type != TOK_RPAREN) {
                         perror ("binary expression missing RPAREN");
                         exit (EXIT_FAILURE);
@@ -240,7 +292,7 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
         } else {
                 left_node = malloc (sizeof (Astn));
                 if (!left_node) {
-                        perror ("astn node allocation fail in binexp_help\n");
+                        perror ("astn node allocation fail in expr_help\n");
                         exit (EXIT_FAILURE);
                 }
 
@@ -248,76 +300,96 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                         // number
                         int val = atoi (curr_tok->lexeme);
                         left_node->kind = NODE_LITERAL;
-                        left_node->data.literal->type = INT;
+                        left_node->data.literal = malloc (sizeof (Literal_Expr));
+                        if (!left_node->data.literal) {
+                                printf ("literal int node allocation failed\n");
+                                exit (EXIT_FAILURE);
+                        }
+                        left_node->data.literal->type = LIT_INT;
                         left_node->data.literal->value.int_val = val;
                 } else if (curr_type == TOK_IDENTIFIER) {
                         // variable or function call
                         if (isin_fun_varlist (F, curr_tok->lexeme)) {
                                 // Identifier is a variable
                                 left_node->kind = NODE_LITERAL;
-                                left_node->data.literal->type = VAR;
-                                left_node->data.literal->value.var = (
-                                        fun_varlist_get_var (F, curr_tok->lexeme));
+                                left_node->data.literal = malloc (sizeof (Literal_Expr));
+                                if (!left_node->data.literal) {
+                                        printf ("literal variable node allocation failed\n");
+                                        exit (EXIT_FAILURE);
+                                }
+                                left_node->data.literal->type = LIT_VAR;
+                                left_node->data.literal->value.var = 
+                                                fun_varlist_get_var (F, curr_tok->lexeme);
                         } else if (isin_program_fun (A, curr_tok->lexeme)) {
                                 // Identifier is a function call
-                                fun_call_handler (A, G, F, S);
+                                left_node->kind = NODE_FUN_CALL;
+                                left_node->data.fun_call = fun_call_handler (A, G, F, S);
                         } else {
                                 // syntax error
-                                // TODO
+                                printf ("Identifier unmatched in expressions\n");
+                                exit (EXIT_FAILURE);
                         }
                 } else if (curr_type == TOK_MINUS) {
                         // negative sign
                         left_node->kind = NODE_UNARY_EXPR;
+                        left_node->data.unary = malloc (sizeof (Unary_Expr));
                         left_node->data.unary->op = TOK_MINUS;
                         left_node->data.unary->arg = expr_help (A, G, F, S, 4);
                 } else if (curr_type == TOK_STAR) {
                         // pointer deference
                         left_node->kind = NODE_UNARY_EXPR;
+                        left_node->data.unary = malloc (sizeof (Unary_Expr));
                         left_node->data.unary->op = TOK_STAR;
                         Astn* ptr = left_node;
                         while (stream_peek(S)->type == TOK_STAR) {
                                 Astn* new = malloc (sizeof (Astn));
                                 new->kind = NODE_UNARY_EXPR;
-                                new->data.unary->op = '*';
+                                new->data.unary = malloc (sizeof (Unary_Expr));
+                                new->data.unary->op = TOK_STAR;
                                 ptr->data.unary->arg = new;
                                 ptr = new;
                                 stream_next (S);
                         }
-                        curr_tok = stream_next (S);
-                        curr_type = curr_tok->type;
                         ptr->data.unary->arg = expr_help (A, G, F, S, 4);
+                } else if (curr_type == TOK_RETURN) {
+                        left_node->kind = NODE_UNARY_EXPR;
+                        left_node->data.unary = malloc (sizeof (Unary_Expr));
+                        left_node->data.unary->op = TOK_RETURN;
+                        left_node->data.unary->arg = expr_help (A, G, F, S, 0);
                 } else {
                         // syntax error
-                        // TODO
+                        printf ("Token unmatched in led\n");
+                                exit (EXIT_FAILURE);
                 }
         }
 
         // led loop
-        int lbp = binary_expr_led (stream_peek(S));
+        int lbp = expr_led (stream_peek(S)->type);
         while (rbp < lbp) {
                 curr_tok = stream_next (S);
                 curr_type = curr_tok->type;
 
                 Astn* new = malloc (sizeof (Astn));
                 if (!new) {
-                        perror ("astn node allocation fail in binexp_help\n");
+                        perror ("astn node allocation fail in expr_help\n");
                         exit (EXIT_FAILURE);
                 }
 
                 new->kind = NODE_BINARY_EXPR;
-                new->data.binary->op = curr_tok;
+                new->data.binary = malloc (sizeof (Binary_Expr));
+                new->data.binary->op = curr_type;
 
                 new->data.binary->left = left_node;
-                new->data.binary->right = binexp_help (A, G, F, S, lbp);
+                new->data.binary->right = expr_help (A, G, F, S, lbp);
                 left_node = new;
-                lbp = binary_expr_led (stream_peek(S));
+                lbp = expr_led (stream_peek(S)->type);
         }
 
         return left_node;
 }
 
 Astn* expr_handler (AST_Program* A, GUser_Types* G, 
-                                  Fun_Type* fun, Stream* S)
+                    Fun_Type* fun, Stream* S)
 {
         return expr_help (A, G, fun, S, 0);
 }
@@ -395,38 +467,23 @@ Astn* body_loop_handler (AST_Program* A, GUser_Types* G,
         node->kind = NODE_LOOP;
         Loop_Expr* loop = malloc (sizeof (Loop_Expr));
 
-        loop->cond = binary_expr_handler(A, G, fun, S);
+        loop->cond = expr_handler(A, G, fun, S);
         loop->body = body_handler (A, G, fun, S);
 
         node->data.loop = loop;
         return node;
 }
 
-Astn* body_idt_handler (AST_Program* A, GUser_Types* G, 
-                       Fun_Type* fun, Stream* S)
-{
-        char* idt_name = stream_curr(S)->lexeme;
-        if (isin_fun_varlist (fun, idt_name)) {
-                // the identifier is a variable
-                
-        } else if (program_search_fun(A, idt_name)) {
-                // the identifier is a function
-
-        } else {
-                perror ("undefined identifier\n");
-                exit (EXIT_FAILURE);
-        }
-}
-
 Body_Block* body_handler (AST_Program* A, GUser_Types* G, 
                               Fun_Type* fun, Stream* S)
 {
         Body_Block* B = new_body ();
-        TokenType curr_type = stream_curr (S);
+        TokenType curr_type = stream_curr (S)->type;
 
         // Square brace variable declaration body stuff
-        if (curr_type == TOK_RSBRACE) {
+        if (curr_type == TOK_LSBRACE) {
                 curr_type = stream_next(S)->type;
+
                 while (curr_type == TOK_IDENTIFIER) {
                         // Declare new variables
                         Var* variable = malloc (sizeof (Var));
@@ -444,19 +501,27 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
                         // Now looking for type
                         variable->type = type_handler (G, S);
 
-                        variable->value = value_handler (G, fun, S);
+                        curr_type = stream_next(S)->type;
+
+                        if (curr_type != TOK_SEMICOLON) {
+                                variable->value = expr_handler (A, G, fun, S);
+                                curr_type = stream_next(S)->type;
+                        }
 
                         body_add_var (B, variable);
 
-                        if (stream_peek(S)->type == TOK_SEMICOLON) {
-                                stream_next (S);
+                        if (curr_type != TOK_SEMICOLON) {
+                                // syntax error
+                                printf ("Missing semicolon after expression\n");
+                                exit (EXIT_FAILURE);
                         }
+
                         curr_type = (stream_next(S))->type;
                 }
         }
-        program_add_varlist (A, body_get_varlist(B));
-        
+        fun_var_dec_add (fun, body_get_varlist(B));
 
+        stream_next(S);
 
         if (stream_curr(S)->type != TOK_LBRACE) {
                 perror ("Body not declared!\n");
@@ -464,47 +529,50 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
         }
 
         // Actual logic and computation inside braces
-        curr_type = stream_next(S)->type;
+        TokenType peek = stream_peek (S)->type;
 
 
-        while (curr_type != TOK_RBRACE) {
-                if (curr_type == TOK_IF) {
+        while (peek != TOK_RBRACE) {
+                if (peek == TOK_IF) {
                         // Conditional Handler
+                        stream_next (S);
                         Astn* node = body_cond_handler (A, G, fun, S);
                         body_add_inst (B, node);
-                } else if (curr_type == TOK_WHILE) {
+                } else if (peek == TOK_WHILE) {
                         // Loop Handler
+                        stream_next (S);
                         Astn* node = body_loop_handler (A, G, fun, S);
                         body_add_inst (B, node);
-                } else if (curr_type == TOK_IDENTIFIER) {
-                        // Can either be variable mutation,
-                        // variable Assignment,function call,
-                        // struct mutation, etc.
-                        char* idt_name = stream_curr(S)->lexeme;
-                        if (!idt_name) {
-                                perror ("identifier token missing lexeme\n");
-                                exit (EXIT_FAILURE);
-                        }
-                        Astn* node = body_idt_handler (A, G, fun, S);
-                        body_add_inst (B, node);
-                } else if (curr_type == TOK_LSBRACE) {
+                } else if (peek == TOK_LSBRACE) {
                         // New Body declaration, with new variables for its scope
+                        stream_next (S);
                         Astn* node = malloc (sizeof (Astn));
                         node->kind = NODE_BODY;
                         node->data.body_block = body_handler (A, G, fun, S);
                         body_add_inst (B, node);
-                } else if (curr_type == TOK_LBRACE) {
+                } else if (peek == TOK_LBRACE) {
+                        stream_next (S);
                         // New Body declaration, no new variables
                         Astn* node = malloc (sizeof (Astn));
                         node->kind = NODE_BODY;
                         node->data.body_block = body_handler (A, G, fun, S);
                         body_add_inst (B, node);
                 } else {
-                        perror ("Something went wrong in the body\n");
-                        exit (EXIT_FAILURE);
+                        Astn* node = expr_handler (A, G, fun, S);
+                        printf ("\n\nDebug, what token are we on right now?\n");
+                        print_token (stream_curr (S));
+                        stream_next(S);
+
+                        if (stream_curr(S)->type != TOK_SEMICOLON) {
+                                // Syntax error
+                                printf ("Missing semicolon after expression1\n");
+                                exit (EXIT_FAILURE);
+                        }
+                        body_add_inst (B, node);
                 }
+
                 // All of these cases should end at }
-                curr_type = stream_next(S)->type;
+                peek = stream_peek(S)->type;
         }
 
 
@@ -520,15 +588,13 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
 {
         TokenType curr_type = (stream_next (S))->type;
 
-        Fun_Type* fun = malloc (sizeof (Fun_Type));
-
         if (curr_type != TOK_IDENTIFIER ||
             stream_curr(S)->lexeme == NULL) {
                 perror ("yo you didn't write the function right\n");
                 exit (EXIT_FAILURE);
         }
         
-        fun->fun_name = strdup((stream_curr(S))->lexeme);
+        Fun_Type* fun = new_fun(strdup((stream_curr(S))->lexeme));
         printf ("adding function: '%s'\n", fun->fun_name);
         // now expecting the left parenthesis
         curr_type = (stream_next (S))->type;
@@ -538,8 +604,7 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
                 exit (EXIT_FAILURE);
         }
 
-        // initializing parameters
-        fun->variables = new_varlist ();
+        curr_type = (stream_next (S))->type;
 
         // now expecting either a bunch of arguments or right parenthesis
         while (curr_type == TOK_IDENTIFIER) {
@@ -562,7 +627,7 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
                 // Now looking for type
                 variable->type = type_handler (G, S);
 
-                fun_add_param (fun, variable);
+                fun_param_add (fun, variable);
 
                 if (stream_peek(S)->type == TOK_COMMA) {
                         stream_next (S);
@@ -587,7 +652,8 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
         // now expecting a type
         fun->ret_type = type_handler (G, S);
 
-        // TODO: pass onto handling the body
+        stream_next(S);
+
         fun->body = body_handler (A, G, fun, S);
 
 

@@ -166,6 +166,8 @@ void print_token (Token* tok)
         printf ("Token: %s", tokenType2string (t));
         if (t == TOK_IDENTIFIER) {
                 printf (", lexeme: '%s'", tok->lexeme);
+        } else if (t == TOK_INT_LITERAL) {
+                printf (", literal: '%s'", tok->lexeme);
         }
         printf ("\n");   
 }

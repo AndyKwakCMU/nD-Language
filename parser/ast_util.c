@@ -9,6 +9,7 @@
 #include <stdlib.h>
 
 #include "ast.h"
+#include "../utils.h"
 
 // ========================================================================= //
 
@@ -54,7 +55,7 @@ void print_type (Type* type)
         }
 }
 
-void print_param (Var** params, size_t n)
+void print_param (Var_List* params)
 {
         if (!params) {
                 perror ("parameter list uninitialized");
@@ -62,14 +63,130 @@ void print_param (Var** params, size_t n)
         }
 
         size_t i = 0;
-        while (i < n) {
-                printf ("Param #%zu name: '%s', Type: \n", i, params[i]->name);
-                print_type (params[i]->type);
+        while (i < params->num_var) {
+                printf ("Param #%zu name: '%s', Type: \n", i, params->variables[i]->name);
+                print_type (params->variables[i]->type);
                 i++;
         }
 }
 
-void print_body (Body_Block* body);
+void print_varlist (Var_List* V)
+{
+        if (!V) {
+                perror ("parameter list uninitialized");
+                exit (EXIT_FAILURE);
+        }
+
+        size_t i = 0;
+        while (i < V->num_var) {
+                printf ("Variable #%zu name: '%s', Type: \n", i, V->variables[i]->name);
+                print_type (V->variables[i]->type);
+                i++;
+        }
+}
+
+void print_ast (Astn* A); // forward declaration
+
+void print_body (Body_Block* B); // forward declaration
+
+void print_cond (Cond_Expr* C)
+{
+        if (C->kind == IF) {
+                printf ("IF case\n");
+        } else if (C->kind == ELSEIF) {
+                printf ("ELSEIF case\n");
+        } else if (C->kind == ELSE) {
+                printf ("ELSE case\n");
+        } else {
+                printf ("Unknown Conditional Case\n");
+        }
+
+        printf ("Condition: \n");
+        print_ast (C->cond);
+        printf ("Case Body: \n");
+        print_body (C->body);
+        
+        if (C->chain != NULL) {
+                printf ("Conditional Chain: \n");
+                print_cond (C->chain);
+        }
+}
+
+void print_ast (Astn* A)
+{
+        if (!A) {
+                printf ("This ast is empty...\n");
+        } else if (A->kind == NODE_LITERAL) {
+                printf ("Literal Node: \n");
+                if (A->data.literal->type == LIT_INT) {
+                        printf ("%d\n", A->data.literal->value.int_val);
+                } else if (A->data.literal->type == LIT_CHAR) {
+                        printf ("%c\n", A->data.literal->value.char_val);
+                } else if (A->data.literal->type == LIT_VAR) {
+                        Var* V = A->data.literal->value.var;
+                        printf ("Variable: %s\n", V->name);
+                        printf ("type: ");
+                        print_type (V->type);
+                        printf ("values: \n");
+                        print_ast (V->value);
+                } else {
+                        printf ("Node literal but didnt match a type...\n");
+                }
+        } else if (A->kind == NODE_BINARY_EXPR) {
+                printf ("Binary Expression Node: \n");
+                printf ("Operation: %s\n", tokenType2string(A->data.binary->op));
+                printf ("left: \n");
+                print_ast (A->data.binary->left);
+                printf ("right: \n");
+                print_ast (A->data.binary->right);
+        } else if (A->kind == NODE_UNARY_EXPR) {
+                printf ("Unary Expression Node: \n");
+                printf ("Operation: %s\n", tokenType2string(A->data.unary->op));
+                printf ("Argument: \n");
+                print_ast (A->data.unary->arg);
+        } else if (A->kind == NODE_FUN_CALL) {
+                printf ("Function Call Node: \n");
+                printf ("Name: %s\n", A->data.fun_call->fun_name);
+                printf ("Args: \n");
+                size_t i = 0;
+                while (i < A->data.fun_call->num_arg) {
+                        print_ast (A->data.fun_call->args[i++]);
+                }
+        } else if (A->kind == NODE_LOOP) {
+                printf ("Loop Node: \n");
+                printf ("Condition: \n");
+                print_ast (A->data.loop->cond);
+                printf ("Body: \n");
+                print_body (A->data.loop->body);
+        } else if (A->kind == NODE_COND) {
+                printf ("Conditional Node: \n");
+                print_cond (A->data.cond);
+        } else if (A->kind == NODE_BODY) {
+                printf ("Body Node: \n");
+                print_body (A->data.body_block);
+        } else {
+                printf ("AST Kind did not match?????\n");
+        }
+}
+
+void print_body (Body_Block* body)
+{
+        printf ("Printing Body: \n");
+        if (!body) {
+                printf ("No Body... nobody but you!\n");
+                return;
+        }
+        
+        printf ("Variables in body scope: \n");
+        print_varlist (body->vars);
+
+
+        printf ("Body Instructions: \n");
+        size_t i = 0;
+        while (i < body->num_inst) {
+                print_ast (body->inst[i++]);
+        }
+}
 
 void print_function (Astn* fun, size_t i)
 {
@@ -86,11 +203,10 @@ void print_function (Astn* fun, size_t i)
         print_type (fun->data.fun_dec->ret_type);
 
         printf ("Parameters: ");
-        print_param (fun->data.fun_dec->params, 
-                   fun->data.fun_dec->num_param);
+        print_param (fun->data.fun_dec->variables[0]);
 
-        //printf ("Body: ");
-        //print_body (fun->data.fun_dec->body);
+        printf ("Body: ");
+        print_body (fun->data.fun_dec->body);
 
         printf ("Does it look any good?\n");
 }

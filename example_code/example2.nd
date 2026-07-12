@@ -3,8 +3,8 @@
 
 fun main (a : int, b : int->int) : int # return type
 [
-# square bracket for variable declaration
-        x : int;
+        # square bracket for variable declaration
+        x : int$;
         y : int->int;
 ] 
 {

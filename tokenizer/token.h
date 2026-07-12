@@ -49,6 +49,15 @@ typedef enum {
         TOK_ELSEIF,
 	TOK_ELSE,
 
+	TOK_EQ,
+	TOK_LT,
+	TOK_LEQ,
+	TOK_GT,
+	TOK_GEQ,
+
+	TOK_AND,
+	TOK_OR,
+
 	TOK_WHILE,
 
 	TOK_PLUS,

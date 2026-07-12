@@ -1,1 +1,1 @@
-fun main (a : int, b : int->int) : int;
+fun main (a : int, b : int->(int->int)->int) : int;

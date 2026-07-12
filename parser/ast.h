@@ -11,6 +11,8 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "../tokenizer/token.h"
+
 // ========================================================================= //
 
 
@@ -75,13 +77,17 @@ typedef struct Glo_User_Types {
 
 // ========================================================================= //
 // Variable Implementation
-typedef struct Value Value;
+typedef struct AST_Node Astn;
 
 typedef struct User_Var User_Var;
 
+typedef struct Var_List Var_List;
+
+typedef struct Var Var;
+
 typedef struct User_Val {
         char* cont_name;
-        Value* cont_val;
+        Astn* cont_val;
 } User_Val;
 
 struct User_Var {
@@ -91,30 +97,17 @@ struct User_Var {
         size_t struct_cap;
 };
 
-typedef struct Closure {
-        void* function_ptr;
-        Var_List* env; // Array of variables the function has access to
-} Closure;
-
-struct Value {
-        union {
-                int integer;
-
-                char character;
-
-                Value* pointer;
-
-                User_Var* user;
-
-                Closure closure;
-        } as;
-};
-
-typedef struct {
+struct Var {
         char* name;
         Type* type;
-        Value* value;
-} Var;
+        Astn* value;
+};
+
+struct Var_List {
+        Var** variables;
+        size_t num_var;
+        size_t var_cap;
+};
 // ========================================================================= //
 
 
@@ -123,9 +116,6 @@ typedef struct {
 typedef enum {
         // Literals like int values
         NODE_LITERAL,
-
-        // Bracket shit fuck you
-        NODE_SCOPE,
 
         // Takes two values and does something, like arithmetic expressions,
         // conditionals, assignment, etc.
@@ -150,13 +140,13 @@ typedef enum {
         NODE_BODY
 } Node_Kind;
 
-typedef struct AST_Node Astn;
+
 
 typedef struct {
         enum {
-                INT,
-                CHAR,
-                VAR
+                LIT_INT,
+                LIT_CHAR,
+                LIT_VAR
         } type;
         union {
                 int int_val;
@@ -166,21 +156,15 @@ typedef struct {
 } Literal_Expr;
 
 typedef struct {
-        char op;
+        TokenType op;
         Astn* left;
         Astn* right;
 } Binary_Expr;
 
 typedef struct {
-        char op;
+        TokenType op;
         Astn* arg;
 } Unary_Expr;
-
-typedef struct Var_List {
-        Var** variables;
-        size_t num_var;
-        size_t var_cap;
-} Var_List;
 
 typedef struct {
         Astn** inst; // instructions, UBA of ast, L->R order
@@ -230,7 +214,9 @@ typedef struct Fun_Type {
 typedef struct Fun_Call {
         char* fun_name;
 
-        Var_List* vars;
+        Astn** args;
+        size_t num_arg;
+        size_t arg_cap;
 } Fun_Call;
 
 struct AST_Node {
@@ -238,7 +224,7 @@ struct AST_Node {
         union {
                 Literal_Expr* literal;
                 Binary_Expr*  binary;
-                Unary_Expr*  unary;
+                Unary_Expr*   unary;
                 Loop_Expr*    loop;
                 Cond_Expr*    cond;
                 Fun_Type*     fun_dec;
@@ -259,15 +245,18 @@ typedef struct {
 
 // Helper functions so I dont lose hair
 // new_struct  ()
-// struct_add  ()
 // in_struct   ()
 // get_struct  ()
+// struct_add  ()
 // free_struct ()
 // ========================================================================= //
 // User types implementation
 GUser_Types* new_GUser ();
+
 void GUser_add (GUser_Types* G, User_Type* U);
+
 bool isin_GUser (GUser_Types* G, char* name);
+
 User_Type* get_GUser (GUser_Types* G, char* name);
 
 // ========================================================================= //
@@ -282,9 +271,18 @@ Var* varlist_get_var (Var_List* V, char* name);
 void varlist_free (Var_List* L);
 
 // ========================================================================= //
+Fun_Type* new_fun (char* name);
+
 bool isin_fun_varlist (Fun_Type* F, char* name);
 
 Var* fun_varlist_get_var (Fun_Type* F, char* name);
+
+void fun_var_dec_add (Fun_Type* F, Var_List* L);
+
+void fun_param_add (Fun_Type* F, Var* v);
+
+// ========================================================================= //
+void call_add_arg (Fun_Call* C, Astn* arg);
 
 // ========================================================================= //
 Body_Block* new_body ();
@@ -296,12 +294,12 @@ void body_add_var (Body_Block* B, Var* v);
 Var_List* body_get_varlist (Body_Block* B);
 
 // ========================================================================= //
-void fun_add_param (Fun_Type* F, Var* v);
-
-
 AST_Program* new_Program ();
+
 void program_add_fun (AST_Program* A, Fun_Type* fun);
+
 bool isin_program_fun (AST_Program* A, char* name);
+
 Fun_Type* program_get_fun (AST_Program* A, char* name);
 
 

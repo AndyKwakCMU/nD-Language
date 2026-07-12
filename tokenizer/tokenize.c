@@ -134,7 +134,8 @@ Token* alpha_handler (int c, FILE* fptr)
 	int i = 0;
 	
 	while (c != EOF &&
-	       (isalnum (c) || c == '_')) {
+	       ((isalnum (c) || c == '_') ||
+	        (c == '$'))) {
 		word [i++] = c;
 		c = fgetc (fptr);
 	}
@@ -163,19 +164,23 @@ Token* word_handler (char* word)
 		t->type = TOK_IF;
 	} else if (strcmp (word, "elseif") == 0) {
                 t->type = TOK_ELSEIF;
-        } else if (strcmp (word, "else") == 0) {
+        } else if (strcmp (word, "and") == 0) {
+		t->type = TOK_AND;
+	} else if (strcmp (word, "or") == 0) {
+		t->type = TOK_OR;
+	} else if (strcmp (word, "else") == 0) {
 		t->type = TOK_ELSE;
 	} else if (strcmp (word, "while") == 0) {
 		t->type = TOK_WHILE;
 	} else if (strcmp (word, "return") == 0) {
 		t->type = TOK_RETURN;
-	} else if (strcmp (word, "int") == 0) {
-		t->type = TOK_INT_TYPE;
 	} else if (strcmp (word, "int$") == 0) {
+		t->type = TOK_INT_TYPE;
+	} else if (strcmp (word, "int") == 0) {
 		t->type = TOK_INT_MUT_TYPE;
-	} else if (strcmp (word, "char") == 0) {
-		t->type = TOK_CHAR_TYPE;
 	} else if (strcmp (word, "char$") == 0) {
+		t->type = TOK_CHAR_TYPE;
+	} else if (strcmp (word, "char") == 0) {
 		t->type = TOK_CHAR_MUT_TYPE;
 	} else if (strcmp (word, "none") == 0) {
 		t->type = TOK_NONE_TYPE;	

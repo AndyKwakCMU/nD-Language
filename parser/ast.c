@@ -47,7 +47,7 @@ void GUser_add (GUser_Types* G, User_Type* U)
         }
 }
 
-bool in_GUser (GUser_Types* G, char* name)
+bool isin_GUser (GUser_Types* G, char* name)
 {
         size_t i = 0;
         size_t n = G->index;
@@ -119,65 +119,32 @@ void varlist_add (Var_List* L, Var* var)
         }
 }
 
-// ========================================================================= //
-Body_Block* new_body ()
+bool isin_varlist (Var_List* V, char* name)
 {
-        Body_Block* B = malloc (sizeof (Body_Block));
-        if (!B) {
-                perror ("body allocation failure\n");
-                exit (EXIT_FAILURE);
-        }
-
-        B->num_inst = 0;
-        B->inst_cap = 4;
-        B->inst = malloc (sizeof (Astn*) * B->inst_cap);
-        if (!B->inst) {
-                perror ("instructions list allocation error\n");
-                exit (EXIT_FAILURE);
-        }
-
-
-}
-
-void body_add_var (Body_Block* B, Var* v)
-{
-        varlist_add (B->vars, v);
-}
-
-Var_List* body_get_varlist (Body_Block* B)
-{
-        return B->vars;
-}
-
-bool varlist_search (Fun_Type* F, char* name)
-{
-        if (varlist_get_var (F, name) != NULL) {
+        if (varlist_get_var (V, name) != NULL) {
                 return true;
         } else {
                 return false;
         }
 }
 
-Var* varlist_get_var (Fun_Type* F, char* name)
+Var* varlist_get_var (Var_List* V, char* name)
 {
         size_t i = 0;
-        size_t j = 0;
-        while (i < F->num_var) {
-                Var_List* curr = F->variables[i];
-                
-                while (j < curr->num_var) {
-                        Var* curr_var = curr->variables[j];
-                        char* curr_name = curr_var->name;
+        while (i < V->num_var) {
+                Var* curr_var = V->variables[i];
+                char* curr_name = V->variables[i]->name;
 
-                        if (strcmp(name, curr_name) == 0) {
-                                return curr_var;
-                        }
-                        j++;
+                if (strcmp(name, curr_name) == 0) {
+                        return curr_var;
                 }
                 i++;
         }
         return NULL;
 }
+
+void varlist_free (Var_List* L); // TODO
+
 
 // ========================================================================= //
 Fun_Type* new_fun (char* name)
@@ -199,7 +166,36 @@ Fun_Type* new_fun (char* name)
                 exit (EXIT_FAILURE);
         }
 
+        F->variables[0] = new_varlist ();
+
         return F;
+}
+
+bool isin_fun_varlist (Fun_Type* F, char* name)
+{
+        if (fun_varlist_get_var(F, name) != NULL) {
+                return true;
+        }
+
+        return false;
+}
+
+Var* fun_varlist_get_var (Fun_Type* F, char* name)
+{
+        size_t i = 0;
+        while (i < F->num_var) {
+                Var_List* V = F->variables[i];
+                size_t j = 0;
+                while (j < V->num_var) {
+                        if (strcmp(V->variables[j]->name, name) == 0) {
+                                return V->variables[j];
+                        }
+                        j++;
+                }
+                i++;
+        }
+
+        return NULL;
 }
 
 void fun_param_add (Fun_Type* F, Var* v)
@@ -233,6 +229,74 @@ void fun_var_dec_add (Fun_Type* F, Var_List* L)
                 F->var_cap = cap;
         }
 }
+
+// ========================================================================= //
+void call_add_arg (Fun_Call* C, Astn* arg)
+{
+        C->args[(C->num_arg)++] = arg;
+
+        if (C->num_arg == C->arg_cap) {
+                C->arg_cap *= 2;
+                Astn** new = malloc (sizeof (Astn*) * C->arg_cap);
+                size_t i = 0;
+                while (i < C->num_arg) {
+                        new[i] = C->args[i];
+                        i++;
+                }
+                free (C->args);
+                C->args = new;
+        }
+}
+
+// ========================================================================= //
+Body_Block* new_body ()
+{
+        Body_Block* B = malloc (sizeof (Body_Block));
+        if (!B) {
+                perror ("body allocation failure\n");
+                exit (EXIT_FAILURE);
+        }
+
+        B->num_inst = 0;
+        B->inst_cap = 4;
+        B->inst = malloc (sizeof (Astn*) * B->inst_cap);
+        if (!B->inst) {
+                perror ("instructions list allocation error\n");
+                exit (EXIT_FAILURE);
+        }
+
+        B->vars = new_varlist();
+
+        return B;
+}
+
+void body_add_inst (Body_Block* B, Astn* inst)
+{
+        B->inst[(B->num_inst)++] = inst;
+
+        if (B->num_inst == B->inst_cap) {
+                B->inst_cap *= 2;
+                Astn** new = malloc (sizeof (Astn*) * B->inst_cap);
+                size_t i = 0;
+                while (i < B->num_inst) {
+                        new[i] = B->inst[i];
+                        i++;
+                }
+                free (B->inst);
+                B->inst = new;
+        }
+}
+
+void body_add_var (Body_Block* B, Var* v)
+{
+        varlist_add (B->vars, v);
+}
+
+Var_List* body_get_varlist (Body_Block* B)
+{
+        return B->vars;
+}
+
 
 // ========================================================================= //
 AST_Program* new_Program () 
@@ -296,7 +360,33 @@ void program_add_fun (AST_Program* A, Fun_Type* fun)
         }
 }
 
-Fun_Type* program_get_fun (AST_Program* A, char* name);
+bool isin_program_fun (AST_Program* A, char* name)
+{
+        if (program_get_fun (A, name) != NULL) {
+                return true;
+        }
+
+        return false;
+}
+
+Fun_Type* program_get_fun (AST_Program* A, char* name)
+{
+        size_t i = 0;
+        while (i < A->function_count) {
+                Astn* node = A->functions[i];
+                if (node->kind != NODE_FUN_DEC) {
+                        // Error
+                        // TODO
+                }
+
+                Fun_Type* F = node->data.fun_dec;
+                if (strcmp (F->fun_name, name) == 0) {
+                        return F;
+                }
+                i++;
+        }
+        return NULL;
+}
 
 
 // ========================================================================= //
