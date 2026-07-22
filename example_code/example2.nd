@@ -5,10 +5,22 @@ fun main (a : int, b : int->int) : int # return type
 [
         # square bracket for variable declaration
         x : int$;
-        y : int->int;
+        y : int->int = (fn z : int => z + 1);
 ] 
 {
-        # bracket for body, purely logical
+        # bracket for body, purely logical/imperative
         x = 3;
+        if (x == 3) {
+                x = 2;
+        } elseif (x == 2 and a == 0) {
+                x = 1;
+        } else {
+                x = y (x);
+        }
+
+        while (x < 0) {
+                x = x + 1;
+        }
+
         return 1;
 }
