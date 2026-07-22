@@ -1,0 +1,19 @@
+
+typedef user = int;
+
+typedef chris = {
+        andy : int$;
+        elwin : int$;
+}
+
+typedef farnam = chris*;
+
+fun main () : int
+[
+        x : farnam$;
+] 
+{
+        x->andy = 67;
+        x->elwin = 41;
+        return 1;
+}

@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <assert.h>
+
 #include "../tokenizer/token.h"
 #include "../tokenizer/real_stream.h"
 #include "../tokenizer/tokenize.h"
@@ -20,15 +22,139 @@
 #include "ast.h"
 
 // ========================================================================= //
-
-// ========================================================================= //
 AST_Program* parse (Stream* S);
 
 
+void typedef_handler (AST_Program* A, GUser_Types* G, Stream* S);
+Type* type_handler (GUser_Types* G, Stream* S);
+Astn* expr_handler (AST_Program* A, GUser_Types* G, 
+                    Fun_Type* fun, Stream* S);
 
 
 // ========================================================================= //
+Var_List* user_struct_handler (AST_Program* A, GUser_Types* G, Stream* S)
+{
+        #ifdef DEBUG
+        printf ("user struct handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
 
+        Var_List* V = new_varlist ();
+
+        // should start at the TOK_LBRACE
+        while (stream_peek(S)->type != TOK_RBRACE) {
+                stream_next(S); // now at an identifier
+
+                #ifdef DEBUG
+                printf ("user struct handler debug print token 2\n");
+                print_token (stream_curr(S));
+                #endif
+
+                if (stream_curr(S)->type != TOK_IDENTIFIER) {
+                        serr (stream_curr(S), "user struct declaration missing target identifier");
+                }
+                if (!stream_curr(S)->lexeme) {
+                        serr (stream_curr(S), "user struct declaration missing target lexeme");
+                }
+
+                Var* var = malloc (sizeof (Var));
+                var->name = strdup (stream_curr(S)->lexeme);
+                
+                stream_next(S); // now at a colon
+                if (stream_curr(S)->type != TOK_COLON) {
+                        serr (stream_curr(S), "user struct declaration missing type");
+                }
+
+                var->type = type_handler (G, S);
+
+                #ifdef DEBUG
+                printf ("user struct handler debug print token 3\n");
+                print_token (stream_curr(S));
+                #endif
+
+                stream_next(S); // now at = or ;
+                if (stream_curr(S)->type == TOK_ASSIGN) {
+                        #ifdef DEBUG
+                        printf ("user struct handler debug print token 4\n");
+                        print_token (stream_curr(S));
+                        #endif
+                        Fun_Type* F = new_fun(NULL);
+                        fun_var_dec_add (F, V);
+                        var->value = expr_handler (A, G, F, S);
+                        #ifdef DEBUG
+                        printf ("user struct handler debug print token 5\n");
+                        print_token (stream_curr(S));
+                        #endif
+
+                        free (fun_var_rem (F));
+                        stream_next(S); // now should be semicolon
+                } 
+
+                #ifdef DEBUG
+                printf ("user struct handler debug print token 6\n");
+                print_token (stream_curr(S));
+                #endif
+                
+                if (stream_curr(S)->type != TOK_SEMICOLON) {
+                        serr (stream_curr(S), "syntax error at user struct declaration");
+                } 
+        }
+
+        return V;
+}
+
+void typedef_handler (AST_Program* A, GUser_Types* G, Stream* S)
+{
+        stream_next(S);
+
+        #ifdef DEBUG
+        printf ("typedef handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
+        if (stream_curr(S)->type != TOK_IDENTIFIER) {
+                serr (stream_curr(S), "typedef missing target identifier");
+        }
+        if (!stream_curr(S)->lexeme) {
+                // this is impossible to happen
+                serr (stream_curr(S), "target identifier missing lexeme");
+        }
+
+        char* name = strdup (stream_curr(S)->lexeme);
+
+        stream_next(S);
+        if (stream_curr(S)->type != TOK_ASSIGN) {
+                serr (stream_curr(S), "typedef missing assignment");
+        }
+
+        User_Type* U = malloc (sizeof (User_Type));
+        U->name = name;
+        
+        if (stream_peek(S)->type == TOK_LBRACE) {
+                stream_next(S);
+                U->kind = STRUCT;
+                U->data.Struct = user_struct_handler (A, G, S);
+                if (stream_next(S)->type != TOK_RBRACE) {
+                        serr (stream_curr(S), "typedef alias missing closing brace");
+                }
+
+        } else {
+                U->kind = ALIAS;
+                U->data.Alias = type_handler (G, S);
+
+                #ifdef DEBUG
+                printf ("typedef handler debug print token 2\n");
+                print_token (stream_curr(S));
+                #endif
+
+                if (stream_next(S)->type != TOK_SEMICOLON) {
+                        serr (stream_curr(S), "typedef alias missing semicolon");
+                }
+
+        }
+
+        GUser_add (G, U);
+}
 
 // ========================================================================= //
 int type_nud_lookup (GUser_Types* G, Token* tok)
@@ -37,29 +163,20 @@ int type_nud_lookup (GUser_Types* G, Token* tok)
         switch (tok_type) {
                 case TOK_INT_TYPE :
                         return 0;
-                        break;
-                case TOK_INT_MUT_TYPE :
-                        return 0;
-                        break;
                 case TOK_CHAR_TYPE :
                         return 0;
-                        break;
-                case TOK_CHAR_MUT_TYPE :
+                case TOK_STRING_TYPE :
                         return 0;
-                        break;
+                case TOK_LIST_TYPE :
+                        return 0;
                 case TOK_IDENTIFIER :
                         if (isin_GUser (G, tok->lexeme)) {
                                 return 0;
-                        } else {
-                                perror ("Undeclared type used");
-                                exit (EXIT_FAILURE);
-                        }
-                        break;
+                        } 
                 default :
-                        perror ("Typing syntax error");
-                        exit (EXIT_FAILURE);
-                        break;
+                        serr (tok, "token not in nud");
         }
+        return 0;
 }
 
 int type_led_lookup (GUser_Types* G, Token* tok)
@@ -68,33 +185,28 @@ int type_led_lookup (GUser_Types* G, Token* tok)
         switch (tok_type) {
                 case TOK_ARROW_TYPE :
                         return 100;
-                        break;
                 case TOK_STAR :
                         return 200;
-                        break;
+                case TOK_MUT :
+                        return 200;
                 case TOK_RPAREN :
                         return -1;
-                        break;
                 case TOK_COMMA :
                         return -1;
-                        break;
                 case TOK_LBRACE :
                         return -1;
-                        break;
                 case TOK_LSBRACE :
                         return -1;
-                        break;
                 case TOK_SEMICOLON :
                         return -1;
-                        break;
                 case TOK_EOF :
                         return -1;
-                        break;
+                case TOK_ASSIGN :
+                        return -1;
                 default :
-                        perror ("Typing syntax error");
-                        exit (EXIT_FAILURE);
-                        break;
+                        return -1;
         }
+        return -1;
 }
 
 Type* th_help (GUser_Types* G, Stream* S, int rbp)
@@ -103,12 +215,16 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
         TokenType curr_type = curr_tok->type;
         Type* left_node = NULL;
 
+        #ifdef DEBUG
+        printf ("type handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
         // nud conditionals
         if (curr_type == TOK_LPAREN) {
                 left_node = th_help (G, S, 0);
                 if (stream_next(S)->type != TOK_RPAREN) {
-                        perror ("wat");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "type parenthesis not closed");
                 }
         } else {
                 type_nud_lookup (G, curr_tok);
@@ -116,23 +232,27 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
                 if (curr_type == TOK_INT_TYPE) {
                         left_node->kind = VALUE;
                         left_node->data.base = INT;
-                } else if (curr_type == TOK_INT_MUT_TYPE) {
-                        left_node->kind = VALUE;
-                        left_node->data.base = INT_MUT;
                 } else if (curr_type == TOK_CHAR_TYPE) {
                         left_node->kind = VALUE;
                         left_node->data.base = CHAR;
-                } else if (curr_type == TOK_CHAR_MUT_TYPE) {
+                } else if (curr_type == TOK_STRING_TYPE) {
                         left_node->kind = VALUE;
-                        left_node->data.base = CHAR_MUT;
+                        left_node->data.base = STRING;
+                } else if (curr_type == TOK_LIST_TYPE) {
+                        left_node->kind = LIST;
+                        left_node->data.list = type_handler (G, S);
                 } else if (curr_type == TOK_IDENTIFIER) {
                         left_node->kind = USER;
                         left_node->data.user = get_GUser (G, curr_tok->lexeme);
                 } else {
-                        perror ("Could not match prim type");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "type identifier undeclared");
                 }
         }
+
+        #ifdef DEBUG
+        printf ("type handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif
 
 
         // led loop
@@ -140,6 +260,11 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
         while (rbp < lbp) {
                 curr_tok = stream_next(S);
                 curr_type = curr_tok->type;
+
+                #ifdef DEBUG
+                printf ("type handler debug print token 3\n");
+                print_token (stream_curr(S));
+                #endif
 
                 if (curr_type == TOK_ARROW_TYPE) {
                         Type* fun = malloc (sizeof (Type));
@@ -153,11 +278,19 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
                         pt->kind = POINTER;
                         pt->data.pointer = left_node;
                         left_node = pt;
-                        stream_next(S);
+                } else if (curr_type == TOK_MUT) {
+                        Type* pt = malloc (sizeof (Type));
+                        pt->kind = MUTABLE;
+                        pt->data.mutable = left_node;
+                        left_node = pt;
                 } else {
-                        perror ("Error in led loop");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "invalid binary type syntax");
                 }
+
+                #ifdef DEBUG
+                printf ("type handler debug print token 4\n");
+                print_token (stream_curr(S));
+                #endif
 
                 lbp = type_led_lookup (G, stream_peek (S));
         }
@@ -187,6 +320,11 @@ Astn* expr_handler (AST_Program* A, GUser_Types* G,
 Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G, 
                             Fun_Type* F, Stream* S)
 {
+        #ifdef DEBUG
+        printf ("fun call handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
         char* name = strdup (stream_curr(S)->lexeme);
         Fun_Call* C = malloc (sizeof (Fun_Call));
         C->fun_name = name;
@@ -195,33 +333,107 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
         // function name should be followed by parenthesis and args
         if (stream_next(S)->type != TOK_LPAREN) {
                 // syntax error
-                // TODO
-
+                serr (stream_curr(S), "function call missing LPAREN");
         }
 
+        
 
         while (stream_peek(S)->type != TOK_RPAREN) {
+                #ifdef DEBUG
+                printf ("fun call handler debug print token 2\n");
+                print_token (stream_curr(S));
+                #endif
                 // expr_handler will keep going through tokens until it hits
                 // the seperating commas, which then will come back here and
                 // be added to the arguments. 
                 call_add_arg (C, expr_handler (A, G, F, S));
 
-                if (stream_curr(S)->type != TOK_COMMA) {
+                #ifdef DEBUG
+                printf ("fun call handler debug print token 3\n");
+                print_token (stream_curr(S));
+                #endif
+
+                if (stream_curr(S)->type != TOK_COMMA && 
+                    stream_peek(S)->type != TOK_RPAREN) {
                         // Syntax error
-                        printf ("Syntax error in function call arguments");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "function call arg syntax error");
                 }
                 stream_next(S);
         }
 
         if (stream_curr(S)->type != TOK_RPAREN) {
                 // function arg not closed, syntax error
-                printf ("Function call not clsoed\n");
-                exit (EXIT_FAILURE);
+                serr (stream_curr(S), "function call arg not closed");
         }
 
 
         return C;
+}
+
+Lambda_Expr* lambda_handler (AST_Program* A, GUser_Types* G, 
+                            Fun_Type* F, Stream* S)
+{
+        #ifdef DEBUG
+        printf ("lambda handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
+
+        Lambda_Expr* L = malloc (sizeof (Lambda_Expr));
+        if (!L) {
+                aerr (stream_curr(S));
+        }
+
+
+        L->var = malloc (sizeof (Var));
+        if (!L->var) {
+                aerr (stream_curr(S));
+        }
+
+        Token* tok = stream_next (S);
+        
+        #ifdef DEBUG
+        printf ("lambda handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif
+        
+        L->var->name = strdup (tok->lexeme);
+        tok = stream_next (S);
+        
+        if (tok->type != TOK_COLON) {
+                serr (stream_curr(S), "lambda arg type missing");
+        }
+
+        L->var->type = type_handler (G, S);
+        
+        #ifdef DEBUG
+        printf ("lambda handler debug print token 3\n");
+        print_token (stream_curr(S));
+        #endif
+        
+        L->var->value = NULL;
+
+        Var_List* V = new_varlist ();
+
+        varlist_add (V, L->var);
+
+        fun_var_dec_add (F, V);
+
+        tok = stream_next (S);
+        if (tok->type != TOK_MATCH_ARROW) {
+                serr (stream_curr(S), "lambda missing match arrow");
+        }
+
+        L->function = expr_handler (A, G, F, S);
+
+        #ifdef DEBUG
+        printf ("lambda handler debug print token 4\n");
+        print_token (stream_curr(S));
+        #endif
+
+        free (fun_var_rem (F)); // DO NOT FREE THE VARIABLES
+
+        return L;
 }
 
 /*
@@ -242,6 +454,8 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
 int expr_led (TokenType t)
 {
         switch (t) {
+                case TOK_LPAREN :
+                        return 8;
                 case TOK_ARROW_TYPE :
                         return 7;
                 case TOK_DOT :
@@ -279,6 +493,12 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                  Fun_Type* F, Stream* S, int rbp)
 {
         Token* curr_tok = stream_next(S);
+
+        #ifdef DEBUG
+        printf ("expr handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
         TokenType curr_type = curr_tok->type;
         Astn* left_node = NULL;
 
@@ -286,14 +506,12 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
         if (curr_type == TOK_LPAREN) { 
                 left_node = expr_help (A, G, F, S, 0);
                 if (stream_next(S)->type != TOK_RPAREN) {
-                        perror ("binary expression missing RPAREN");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "expr missing closing RPAREN");
                 }
         } else {
                 left_node = malloc (sizeof (Astn));
                 if (!left_node) {
-                        perror ("astn node allocation fail in expr_help\n");
-                        exit (EXIT_FAILURE);
+                        aerr (stream_curr(S));
                 }
 
                 if (curr_type == TOK_INT_LITERAL) {
@@ -302,20 +520,21 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                         left_node->kind = NODE_LITERAL;
                         left_node->data.literal = malloc (sizeof (Literal_Expr));
                         if (!left_node->data.literal) {
-                                printf ("literal int node allocation failed\n");
-                                exit (EXIT_FAILURE);
+                                aerr (stream_curr(S));
                         }
                         left_node->data.literal->type = LIT_INT;
                         left_node->data.literal->value.int_val = val;
                 } else if (curr_type == TOK_IDENTIFIER) {
                         // variable or function call
+
+                        ASSERT (stream_curr(S)->lexeme != NULL);
+
                         if (isin_fun_varlist (F, curr_tok->lexeme)) {
                                 // Identifier is a variable
                                 left_node->kind = NODE_LITERAL;
                                 left_node->data.literal = malloc (sizeof (Literal_Expr));
                                 if (!left_node->data.literal) {
-                                        printf ("literal variable node allocation failed\n");
-                                        exit (EXIT_FAILURE);
+                                        aerr (stream_curr(S));
                                 }
                                 left_node->data.literal->type = LIT_VAR;
                                 left_node->data.literal->value.var = 
@@ -324,10 +543,19 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                                 // Identifier is a function call
                                 left_node->kind = NODE_FUN_CALL;
                                 left_node->data.fun_call = fun_call_handler (A, G, F, S);
+                        } else if (isin_GUser_var (G, curr_tok->lexeme)) {
+                                // Identifier is a variable inside a struct
+                                left_node->kind = NODE_LITERAL;
+                                left_node->data.literal = malloc (sizeof (Literal_Expr));
+                                if (!left_node->data.literal) {
+                                        aerr (stream_curr(S));
+                                }
+                                left_node->data.literal->type = LIT_VAR;
+                                left_node->data.literal->value.var = 
+                                                get_GUser_var (G, curr_tok->lexeme);
                         } else {
                                 // syntax error
-                                printf ("Identifier unmatched in expressions\n");
-                                exit (EXIT_FAILURE);
+                                serr (stream_curr(S), "expr identifier undeclared");
                         }
                 } else if (curr_type == TOK_MINUS) {
                         // negative sign
@@ -356,12 +584,20 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                         left_node->data.unary = malloc (sizeof (Unary_Expr));
                         left_node->data.unary->op = TOK_RETURN;
                         left_node->data.unary->arg = expr_help (A, G, F, S, 0);
+                } else if (curr_type == TOK_LAMBDA) {
+                        // TODO : Lambda function
+                        left_node->kind = NODE_LAMBDA;
+                        left_node->data.lambda = lambda_handler (A, G, F, S);
                 } else {
                         // syntax error
-                        printf ("Token unmatched in led\n");
-                                exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "expr syntax error");
                 }
         }
+
+        #ifdef DEBUG
+        printf ("expr handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif
 
         // led loop
         int lbp = expr_led (stream_peek(S)->type);
@@ -369,19 +605,46 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                 curr_tok = stream_next (S);
                 curr_type = curr_tok->type;
 
+                #ifdef DEBUG
+                printf ("expr handler debug print token 3\n");
+                print_token (stream_curr(S));
+                #endif
+
                 Astn* new = malloc (sizeof (Astn));
                 if (!new) {
-                        perror ("astn node allocation fail in expr_help\n");
-                        exit (EXIT_FAILURE);
+                        aerr (stream_curr(S));
                 }
 
-                new->kind = NODE_BINARY_EXPR;
-                new->data.binary = malloc (sizeof (Binary_Expr));
-                new->data.binary->op = curr_type;
+                if (curr_type == TOK_LPAREN) {
+                        new->kind = NODE_LAMCALL;
+                        new->data.lam_call = malloc (sizeof (Lambda_Call));
+                        if (!new->data.lam_call) {
+                                aerr (curr_tok);
+                        }
+                        
+                        new->data.lam_call->function = left_node;
+                        new->data.lam_call->arg = expr_help (A, G, F, S, 0);
+                        curr_tok = stream_next(S);
+                        curr_type = curr_tok->type;
+                        if (curr_type != TOK_RPAREN) {
+                                serr (curr_tok, "lambda function call parenthesis not closed");
+                        }
+                        left_node = new;
+                } else {
+                        new->kind = NODE_BINARY_EXPR;
+                        new->data.binary = malloc (sizeof (Binary_Expr));
+                        new->data.binary->op = curr_type;
 
-                new->data.binary->left = left_node;
-                new->data.binary->right = expr_help (A, G, F, S, lbp);
-                left_node = new;
+                        new->data.binary->left = left_node;
+                        new->data.binary->right = expr_help (A, G, F, S, lbp);
+                        left_node = new;
+                }
+
+                #ifdef DEBUG
+                printf ("expr handler debug print token 4\n");
+                print_token (stream_curr(S));
+                #endif
+
                 lbp = expr_led (stream_peek(S)->type);
         }
 
@@ -397,61 +660,125 @@ Astn* expr_handler (AST_Program* A, GUser_Types* G,
 Astn* body_cond_handler (AST_Program* A, GUser_Types* G, 
                          Fun_Type* fun, Stream* S)
 {
+        #ifdef DEBUG
+        printf ("body cond handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
         Astn* node = malloc (sizeof (Astn));
         node->kind = NODE_COND;
         Cond_Expr* cond = malloc (sizeof (Cond_Expr));
 
         TokenType curr_type = stream_curr(S)->type;
+        
+        #ifdef DEBUG
+        printf ("body cond handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif        
+        
         if (curr_type == TOK_IF) {
                 cond->kind = IF;
                 curr_type = stream_next(S)->type;
+                
                 if (curr_type != TOK_LPAREN) {
-                        perror ("conditional not following parenthesis");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "if statement missing parenthesis");
                 }
+                
                 cond->cond = expr_handler (A, G, fun, S);
+                
+                #ifdef DEBUG
+                printf ("body cond handler debug print token 3\n");
+                print_token (stream_curr(S));
+                #endif
+                
                 curr_type = stream_next(S)->type;
+                
                 if (curr_type != TOK_RPAREN) {
-                        perror ("conditional not closed by parenthesis");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "if statement missing closing parenthesis");
                 }
+
+                curr_type = stream_next(S)->type;
                 cond->body = body_handler (A, G, fun, S);
+                
+                #ifdef DEBUG
+                printf ("body cond handler debug print token 4\n");
+                print_token (stream_curr(S));
+                #endif
+                
+                curr_type = stream_next(S)->type;
+                
+                if (curr_type != TOK_RBRACE) {
+                        serr (stream_curr(S), "if statement body missing closing brace");
+                }
         } 
+
+
         curr_type = stream_next(S)->type;
         Cond_Expr* curr_pt = cond;
+
+        #ifdef DEBUG
+        printf ("body cond handler debug print token 5\n");
+        print_token (stream_curr(S));
+        #endif
+
         while (curr_type == TOK_ELSEIF) {
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSEIF;
+                curr_type = stream_next(S)->type;
+
                 if (curr_type != TOK_LPAREN) {
-                        perror ("conditional not following parenthesis");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "elseif statement missing parenthesis");
                 }
+
                 new->cond = expr_handler (A, G, fun, S);
+                
+                #ifdef DEBUG
+                printf ("body cond handler debug print token 6\n");
+                print_token (stream_curr(S));
+                #endif
+
+                curr_type = stream_next(S)->type;
+
                 if (curr_type != TOK_RPAREN) {
-                        perror ("conditional not closed by parenthesis");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "elseif statement missing closing parenthesis");
                 }
+
+                curr_type = stream_next(S)->type;
                 new->body = body_handler (A, G, fun, S);
+
+                #ifdef DEBUG
+                printf ("body cond handler debug print token 7\n");
+                print_token (stream_curr(S));
+                #endif
+
                 curr_pt->chain = new;
                 curr_pt = new;
+                curr_type = stream_next(S)->type;
+
+                if (curr_type != TOK_RBRACE) {
+                        serr (stream_curr(S), "elseif statement body missing closing brace");
+                }
+
                 curr_type = stream_next(S)->type;
         }
 
         if (curr_type == TOK_ELSE) {
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSE;
-                if (curr_type != TOK_LPAREN) {
-                        perror ("conditional not following parenthesis");
-                        exit (EXIT_FAILURE);
-                }
-                new->cond = expr_handler (A, G, fun, S);
-                if (curr_type != TOK_RPAREN) {
-                        perror ("conditional not closed by parenthesis");
-                        exit (EXIT_FAILURE);
-                }
+                curr_type = stream_next(S)->type;
                 new->body = body_handler (A, G, fun, S);
+
+                #ifdef DEBUG
+                printf ("body cond handler debug print token 8\n");
+                print_token (stream_curr(S));
+                #endif
+
                 new->chain = NULL;
                 curr_pt->chain = new;
+                curr_type = stream_next(S)->type;
+                if (curr_type != TOK_RBRACE) {
+                        serr (stream_curr(S), "elseif statement body missing closing brace");
+                }
         }
 
         // Should be a null/ELSE-kind terminated linked list
@@ -463,12 +790,51 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
 Astn* body_loop_handler (AST_Program* A, GUser_Types* G, 
                          Fun_Type* fun, Stream* S)
 {
+        #ifdef DEBUG
+        printf ("body loop handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
         Astn* node = malloc (sizeof (Astn));
         node->kind = NODE_LOOP;
         Loop_Expr* loop = malloc (sizeof (Loop_Expr));
 
         loop->cond = expr_handler(A, G, fun, S);
+
+        #ifdef DEBUG
+        printf ("body loop handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif
+
+        TokenType curr_type = stream_curr(S)->type;
+        if (curr_type != TOK_RPAREN) {
+                serr (stream_curr(S), "loop statement condition missing closing parenthesis");
+        }
+
+        stream_next(S);
+
+        #ifdef DEBUG
+        printf ("body loop handler debug print token 3\n");
+        print_token (stream_curr(S));
+        #endif
+
         loop->body = body_handler (A, G, fun, S);
+
+        #ifdef DEBUG
+        printf ("body loop handler debug print token 4\n");
+        print_token (stream_curr(S));
+        #endif
+
+        curr_type = stream_next(S)->type;
+
+        #ifdef DEBUG
+        printf ("body loop handler debug print token 5\n");
+        print_token (stream_curr(S));
+        #endif
+
+        if (curr_type != TOK_RBRACE) {
+                serr (stream_curr(S), "loop statement body missing closing brace");
+        }
 
         node->data.loop = loop;
         return node;
@@ -480,52 +846,78 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
         Body_Block* B = new_body ();
         TokenType curr_type = stream_curr (S)->type;
 
+        #ifdef DEBUG
+        printf ("body handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
         // Square brace variable declaration body stuff
         if (curr_type == TOK_LSBRACE) {
-                curr_type = stream_next(S)->type;
+                B->vars = new_varlist ();
 
-                while (curr_type == TOK_IDENTIFIER) {
+                stream_next(S);
+
+                // still at TOK_LSBRACE, peeking...
+                while (stream_curr(S)->type != TOK_RSBRACE) {
+                        #ifdef DEBUG
+                        printf ("body handler debug print token 2\n");
+                        print_token (stream_curr(S));
+                        #endif
+                        
                         // Declare new variables
                         Var* variable = malloc (sizeof (Var));
 
                         // Name of variable
+                        ASSERT (stream_curr(S)->lexeme != NULL);
                         variable->name = strdup((stream_curr(S))->lexeme);
                         
                         // Now looking for colon
                         curr_type = (stream_next (S))->type;
                         if (curr_type != TOK_COLON) {
-                                perror ("Didn't declare type of variable\n");
-                                exit (EXIT_FAILURE);
+                                serr (stream_curr(S), "body var dec missing type");
                         }
 
                         // Now looking for type
                         variable->type = type_handler (G, S);
 
+                        #ifdef DEBUG
+                        printf ("body handler debug print token 3\n");
+                        print_token (stream_curr(S));
+                        #endif
+
                         curr_type = stream_next(S)->type;
 
-                        if (curr_type != TOK_SEMICOLON) {
+                        // If the variable is assigned a value
+                        if (curr_type == TOK_ASSIGN) {
+                                // now we are at the assign token
                                 variable->value = expr_handler (A, G, fun, S);
+                                #ifdef DEBUG
+                                printf ("body handler debug print token 4\n");
+                                print_token (stream_curr(S));
+                                #endif
                                 curr_type = stream_next(S)->type;
                         }
 
-                        body_add_var (B, variable);
-
                         if (curr_type != TOK_SEMICOLON) {
                                 // syntax error
-                                printf ("Missing semicolon after expression\n");
-                                exit (EXIT_FAILURE);
+                                serr (stream_curr(S), "body var dec missing semicolon");
                         }
+                        body_add_var (B, variable);
 
                         curr_type = (stream_next(S))->type;
                 }
+                stream_next(S);
         }
         fun_var_dec_add (fun, body_get_varlist(B));
 
-        stream_next(S);
+        #ifdef DEBUG
+        printf ("body handler debug print token 5\n");
+        print_token (stream_curr(S));
+        #endif
+
 
         if (stream_curr(S)->type != TOK_LBRACE) {
-                perror ("Body not declared!\n");
-                exit (EXIT_FAILURE);
+                serr (stream_curr(S), "body missing body");
         }
 
         // Actual logic and computation inside braces
@@ -533,6 +925,10 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
 
 
         while (peek != TOK_RBRACE) {
+                #ifdef DEBUG
+                printf ("body handler debug print token 6\n");
+                print_token (stream_curr(S));
+                #endif
                 if (peek == TOK_IF) {
                         // Conditional Handler
                         stream_next (S);
@@ -559,21 +955,25 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
                         body_add_inst (B, node);
                 } else {
                         Astn* node = expr_handler (A, G, fun, S);
-                        printf ("\n\nDebug, what token are we on right now?\n");
-                        print_token (stream_curr (S));
                         stream_next(S);
 
                         if (stream_curr(S)->type != TOK_SEMICOLON) {
                                 // Syntax error
-                                printf ("Missing semicolon after expression1\n");
-                                exit (EXIT_FAILURE);
+                                serr (stream_curr(S), "statement missing semicolon in body");
                         }
                         body_add_inst (B, node);
                 }
 
-                // All of these cases should end at }
+                #ifdef DEBUG
+                printf ("body handler debug print token 7\n");
+                print_token (stream_curr(S));
+                #endif
+
+                // All of these cases should end at } eventually
                 peek = stream_peek(S)->type;
         }
+
+        fun_var_rem (fun);
 
 
         return B;
@@ -588,26 +988,47 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
 {
         TokenType curr_type = (stream_next (S))->type;
 
+        #ifdef DEBUG
+        printf ("fun handler debug print token 1, looking for identifier\n");
+        print_token (stream_curr(S));
+        #endif
+
         if (curr_type != TOK_IDENTIFIER ||
             stream_curr(S)->lexeme == NULL) {
-                perror ("yo you didn't write the function right\n");
-                exit (EXIT_FAILURE);
+                serr (stream_curr(S), "function name undeclared");
         }
         
         Fun_Type* fun = new_fun(strdup((stream_curr(S))->lexeme));
+        
+        #ifdef DEBUG
         printf ("adding function: '%s'\n", fun->fun_name);
+        #endif
+        
         // now expecting the left parenthesis
         curr_type = (stream_next (S))->type;
+        
+        #ifdef DEBUG 
+        printf ("fun handler debug print token 2, looking for LPAREN\n");
+        print_token (stream_curr(S));
+        #endif
 
         if (curr_type != TOK_LPAREN) {
-                perror ("yo what are you doing with this function\n");
-                exit (EXIT_FAILURE);
+                serr (stream_curr(S), "function missing parenthesis");
         }
 
         curr_type = (stream_next (S))->type;
 
+        
+
         // now expecting either a bunch of arguments or right parenthesis
         while (curr_type == TOK_IDENTIFIER) {
+                
+                #ifdef DEBUG
+                printf ("fun handler debug print token 3, looking for identifier\n");
+                print_token (stream_curr(S));
+                #endif
+                
+
                 // Add new parameter variable
                 Var* variable = malloc (sizeof (Var));
 
@@ -616,12 +1037,22 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
 
                 // Name of variable
                 variable->name = strdup((stream_curr(S))->lexeme);
+
+                #ifdef DEBUG
+                printf ("fun handler debug print token 4, looking for variable name in function param\n");
+                printf ("function name: %s\n", variable->name);
+                #endif
                 
                 // Now looking for colon
                 curr_type = (stream_next (S))->type;
+
+                #ifdef DEBUG
+                printf ("fun handler debug print token 5, looking for colon\n");
+                print_token (stream_curr(S));
+                #endif
+
                 if (curr_type != TOK_COLON) {
-                        perror ("Didn't declare type of parameter\n");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "function parameter missing type");
                 }
 
                 // Now looking for type
@@ -637,16 +1068,14 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
 
         if (curr_type != TOK_RPAREN) {
                 // Didn't have right parenthesis after adding arguments.
-                perror ("forgot right parenthesis on this bro");
-                exit (EXIT_FAILURE);
+                serr (stream_curr(S), "function parameter missing closing parenthesis");
         } 
 
         // now expecting colon, declaring the return type of the function.
         curr_type = (stream_next (S))->type;
         if (curr_type != TOK_COLON) {
                 // Didn't have colon to declare return type.
-                perror ("forgot to declare return type on this bro");
-                exit (EXIT_FAILURE);
+                serr (stream_curr(S), "function missing return type");
         }
 
         // now expecting a type
@@ -670,12 +1099,15 @@ AST_Program* parse (Stream* S)
         GUser_Types* G = new_GUser ();
 
         while (!is_stream_end (S)) {
+                #ifdef DEBUG
+                printf ("parse function while loop tokens\n");
                 print_token (stream_curr (S));
+                #endif
+
                 if (stream_curr(S)->type == TOK_ERROR) {
-                        perror ("Somehow got an error token fucker\n");
-                        exit (EXIT_FAILURE);
+                        serr (stream_curr(S), "token error");
                 } else if ((stream_curr(S))->type == TOK_TYPEDEF) {
-                        //typedef_handler (G, S);
+                        typedef_handler (A, G, S);
                 } else if ((stream_curr(S))->type == TOK_FN) {
                         fun_handler (A, G, S);
                 }
@@ -683,7 +1115,7 @@ AST_Program* parse (Stream* S)
                 stream_next (S);
         }
 
-
+        A->G = G;
 
         return A;
 }

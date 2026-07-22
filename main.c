@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <assert.h>
+
 #include "utils.h"
 
 #include "tokenizer/token.h"
@@ -56,6 +58,7 @@ int main (int argc, char**argv)
 	FILE* pstrm = fopen (filename, "r");
 	Stream* P = new_stream (pstrm);
 	print_stream (P);
+	stream_free (P);
 	fclose (pstrm);
 	printf ("Sucess!\n");
 
@@ -77,6 +80,7 @@ int main (int argc, char**argv)
 	AST_Program* A = parse (S);
 	printf ("Sucess!\n");
 
+	stream_free (S);
 	fclose (fptr);
 
 	printf ("Printing Result ...");

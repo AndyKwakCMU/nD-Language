@@ -2,11 +2,13 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #include "utils.h"
 #include "tokenizer/token.h"
 #include "tokenizer/real_stream.h"
 #include "tokenizer/tokenize.h"
+
 
 bool switch_counter (int c, FILE* fcount) 
 {
@@ -105,14 +107,18 @@ char* tokenType2string (TokenType type)
                         return "TOK_RETURN";
                 case TOK_TYPEDEF :
                         return "TOK_TYPEDEF";
+                case TOK_MUT :
+                        return "TOK_MUT";
                 case TOK_INT_TYPE :
                         return "TOK_INT";
-                case TOK_INT_MUT_TYPE :
-                        return "TOK_INT_MUT";
                 case TOK_CHAR_TYPE :
                         return "TOK_CHAR_TYPE";
-                case TOK_CHAR_MUT_TYPE :
-                        return "TOK_CHAR_MUT_TYPE";
+                case TOK_NONE_TYPE :
+                        return "TOK_NONE_TYPE";
+                case TOK_LIST_TYPE :
+                        return "TOK_LIST_TYPE";
+                case TOK_STRING_TYPE :
+                        return "TOK_STRING_TYPE";
                 case TOK_LPAREN : 
                         return "TOK_LPAREN";
                 case TOK_RPAREN :
@@ -139,6 +145,20 @@ char* tokenType2string (TokenType type)
                         return "TOK_ELSEIF";
                 case TOK_ELSE :
                         return "TOK_ELSE";
+                case TOK_EQ :
+                        return "TOK_EQ";
+                case TOK_LT : 
+                        return "TOK_LT";
+                case TOK_LEQ :
+                        return "TOK_LEQ";
+                case TOK_GT :
+                        return "TOK_GT";
+                case TOK_GEQ :
+                        return "TOK_GEQ";
+                case TOK_AND :
+                        return "TOK_AND";
+                case TOK_OR :
+                        return "TOK_OR";
                 case TOK_WHILE :
                         return "TOK_WHILE";
                 case TOK_PLUS :
@@ -163,7 +183,7 @@ char* tokenType2string (TokenType type)
 void print_token (Token* tok)
 {
         TokenType t = tok->type;
-        printf ("Token: %s", tokenType2string (t));
+        printf ("Token @ r: %zu c: %zu : '%s'", tok->row, tok->col, tokenType2string (t));
         if (t == TOK_IDENTIFIER) {
                 printf (", lexeme: '%s'", tok->lexeme);
         } else if (t == TOK_INT_LITERAL) {
@@ -181,3 +201,22 @@ void print_stream (Stream* S)
 		stream_next (S);
 	}
 }
+
+
+// printing allocation error
+void aerr (Token* t) 
+{
+        printf ("Allocation error at r: %zu, c: %zu\n", t->row, t->col);
+        printf ("Token: "); print_token (t);
+        exit (EXIT_FAILURE);
+}
+
+// printing syntax error
+void serr (Token* t, char* msg)
+{
+        printf ("%s\n", msg);
+        printf ("Syntax error at r: %zu, c: %zu\n", t->row, t->col);
+        printf ("Token: "); print_token (t);
+        exit (EXIT_FAILURE);
+}
+

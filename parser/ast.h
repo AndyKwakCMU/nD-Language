@@ -21,8 +21,10 @@
 typedef enum {
         VALUE,
         POINTER,
+        MUTABLE,
         FUNCTION,
-        USER
+        USER,
+        LIST
 } Type_Kind;
 
 typedef struct Type Type;
@@ -30,8 +32,7 @@ typedef struct Type Type;
 typedef enum {
         INT,
         CHAR,
-        INT_MUT,
-        CHAR_MUT
+        STRING
 } Base_Type;
 
 typedef struct Type_Tree Type_Tree;
@@ -41,36 +42,26 @@ struct Type_Tree {
         Type* output;
 };
 
-typedef struct User {
-        char* cont_name;
-        Type* cont_type;
-} User;
-
-typedef struct User_Type {
-        char* struct_name;
-        User** struct_types;
-        size_t num_struct;
-        size_t struct_cap;
-} User_Type;
+typedef struct User_Type User_Type;
 
 struct Type {
         Type_Kind kind;
+        size_t size;
         union {
-                Type_Tree* tree;
+                Type_Tree* tree; // function type
 
                 Base_Type base;
 
                 Type* pointer;
 
+                Type* mutable; // with this single node, we know that the type is mutable
+
                 User_Type* user;
+
+                Type* list;
         } data;
 };
 
-typedef struct Glo_User_Types {
-        size_t index;
-        size_t size;
-        User_Type** typelist;
-} GUser_Types;
 
 // ========================================================================= //
 
@@ -79,23 +70,9 @@ typedef struct Glo_User_Types {
 // Variable Implementation
 typedef struct AST_Node Astn;
 
-typedef struct User_Var User_Var;
-
 typedef struct Var_List Var_List;
 
 typedef struct Var Var;
-
-typedef struct User_Val {
-        char* cont_name;
-        Astn* cont_val;
-} User_Val;
-
-struct User_Var {
-        char* struct_name;
-        User_Val** struct_types;
-        size_t num_struct;
-        size_t struct_cap;
-};
 
 struct Var {
         char* name;
@@ -108,6 +85,28 @@ struct Var_List {
         size_t num_var;
         size_t var_cap;
 };
+// ========================================================================= //
+
+
+// ========================================================================= //
+struct User_Type {
+        char* name;
+        enum {
+                STRUCT,
+                ALIAS
+        } kind;
+        union {
+                Var_List* Struct;
+                Type*     Alias;
+        } data;
+};
+
+typedef struct Glo_User_Types {
+        size_t num;
+        size_t cap;
+        User_Type** typelist;
+} GUser_Types;
+
 // ========================================================================= //
 
 
@@ -129,6 +128,10 @@ typedef enum {
 
         // Function declaration
         NODE_FUN_DEC,
+
+        NODE_LAMBDA,
+
+        NODE_LAMCALL,
 
         // Loop block
         NODE_LOOP,
@@ -219,6 +222,16 @@ typedef struct Fun_Call {
         size_t arg_cap;
 } Fun_Call;
 
+typedef struct Lambda_Expr {
+        Var* var;
+        Astn* function; 
+} Lambda_Expr;
+
+typedef struct Lambda_Call {
+        Astn* arg;
+        Astn* function;
+} Lambda_Call;
+
 struct AST_Node {
         Node_Kind kind;
         union {
@@ -229,6 +242,8 @@ struct AST_Node {
                 Cond_Expr*    cond;
                 Fun_Type*     fun_dec;
                 Fun_Call*     fun_call;
+                Lambda_Expr*  lambda;
+                Lambda_Call*  lam_call;
                 Body_Block*   body_block;
         } data;
 };
@@ -237,6 +252,8 @@ typedef struct {
         Astn** functions;
         size_t function_count;
         size_t capacity;
+
+        GUser_Types* G;
 } AST_Program;
 
 // ========================================================================= //
@@ -259,6 +276,10 @@ bool isin_GUser (GUser_Types* G, char* name);
 
 User_Type* get_GUser (GUser_Types* G, char* name);
 
+bool isin_GUser_var (GUser_Types* G, char* name);
+
+Var* get_GUser_var (GUser_Types* G, char* name);
+
 // ========================================================================= //
 Var_List* new_varlist ();
 
@@ -278,6 +299,8 @@ bool isin_fun_varlist (Fun_Type* F, char* name);
 Var* fun_varlist_get_var (Fun_Type* F, char* name);
 
 void fun_var_dec_add (Fun_Type* F, Var_List* L);
+
+Var_List* fun_var_rem (Fun_Type* F);
 
 void fun_param_add (Fun_Type* F, Var* v);
 

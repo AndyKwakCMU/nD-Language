@@ -12,11 +12,20 @@
 #define REAL_STREAM_H
 #include "token.h"
 
+struct dbug {
+	size_t row;
+	size_t col;
+};
+
+typedef struct dbug dbug;
+
 typedef struct {
         FILE* fptr;
         Token* prev_token;
         Token* curr_token;
         Token* next_token;
+
+        dbug* D;
 } Stream;
 
 // ========================================================================= //

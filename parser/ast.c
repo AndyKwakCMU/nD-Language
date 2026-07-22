@@ -10,71 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <assert.h>
+
 #include "ast.h"
+#include "../utils.h"
 
 // ========================================================================= //
 
-
-// ========================================================================= //
-GUser_Types* new_GUser ()
-{
-        GUser_Types* G = malloc (sizeof (GUser_Types));
-        G->index = 0;
-        G->size = 4;
-        G->typelist = malloc (sizeof(User_Type*) * 4);
-        return G;
-}
-
-void GUser_add (GUser_Types* G, User_Type* U)
-{
-        G->typelist[(G->index)++] = U;
-
-        if (G->index == G->size) {
-                size_t cap = G->size * 2;
-                User_Type** new = malloc (sizeof (User_Type*) * cap);
-
-                size_t i = 0;
-                size_t n = G->index;
-                User_Type** rem = G->typelist;
-                while (i < n) {
-                        new[i] = rem[i];
-                        i++;
-                }
-
-                free (rem);
-                G->typelist = new;
-                G->size = cap;
-        }
-}
-
-bool isin_GUser (GUser_Types* G, char* name)
-{
-        size_t i = 0;
-        size_t n = G->index;
-        while (i < n) {
-                char* curr_name = G->typelist[i]->struct_name;
-                if (strcmp (curr_name, name) == 0) {
-                        return true;
-                }
-                i++;
-        }
-        return false;
-}
-
-User_Type* get_GUser (GUser_Types* G, char* name)
-{
-        size_t i = 0;
-        size_t n = G->index;
-        while (i < n) {
-                char* curr_name = G->typelist[i]->struct_name;
-                if (strcmp (curr_name, name) == 0) {
-                        return G->typelist[i];
-                }
-                i++;
-        }
-        perror ("User defined type DNE\n");
-        exit (EXIT_FAILURE);
-}
 
 // ========================================================================= //
 Var_List* new_varlist ()
@@ -144,6 +86,97 @@ Var* varlist_get_var (Var_List* V, char* name)
 }
 
 void varlist_free (Var_List* L); // TODO
+
+// ========================================================================= //
+
+
+// ========================================================================= //
+GUser_Types* new_GUser ()
+{
+        GUser_Types* G = malloc (sizeof (GUser_Types));
+        G->num = 0;
+        G->cap = 4;
+        G->typelist = malloc (sizeof(User_Type*) * 4);
+        return G;
+}
+
+void GUser_add (GUser_Types* G, User_Type* U)
+{
+        G->typelist[(G->num)++] = U;
+
+        if (G->num == G->cap) {
+                size_t cap = G->cap * 2;
+                User_Type** new = malloc (sizeof (User_Type*) * cap);
+
+                size_t i = 0;
+                size_t n = G->num;
+                User_Type** rem = G->typelist;
+                while (i < n) {
+                        new[i] = rem[i];
+                        i++;
+                }
+
+                free (rem);
+                G->typelist = new;
+                G->cap = cap;
+        }
+}
+
+User_Type* get_GUser (GUser_Types* G, char* name)
+{
+        size_t i = 0;
+        size_t n = G->num;
+        while (i < n) {
+                char* curr_name = G->typelist[i]->name;
+                if (strcmp (curr_name, name) == 0) {
+                        return G->typelist[i];
+                }
+                i++;
+        }
+        return NULL;
+}
+
+bool isin_GUser (GUser_Types* G, char* name)
+{
+        if (get_GUser (G, name) != NULL) {
+                return true;
+        }
+
+        return false;
+}
+
+Var* get_GUser_var (GUser_Types* G, char* name)
+{
+        REQUIRES (G != NULL && name != NULL);
+        size_t i = 0;
+        size_t n = G->num;
+
+        while (i < n) {
+                User_Type* curr_type = G->typelist[i];
+                ASSERT (curr_type != NULL);
+                if (curr_type->kind == STRUCT) {
+                        Var_List* V = curr_type->data.Struct;
+                        ASSERT (V != NULL);
+                        Var* var = varlist_get_var (V, name);
+                        if (var != NULL) {
+                                return var;
+                        }
+                }
+                i++;
+        }
+        return NULL;
+}
+
+bool isin_GUser_var (GUser_Types* G, char* name)
+{
+        if (get_GUser_var (G, name) != NULL) {
+                return true;
+        }
+
+        return false;
+}
+
+// ========================================================================= //
 
 
 // ========================================================================= //
@@ -230,6 +263,14 @@ void fun_var_dec_add (Fun_Type* F, Var_List* L)
         }
 }
 
+Var_List* fun_var_rem (Fun_Type* F) 
+{
+        return F->variables[--(F->num_var)];
+}
+
+// ========================================================================= //
+
+
 // ========================================================================= //
 void call_add_arg (Fun_Call* C, Astn* arg)
 {
@@ -249,6 +290,9 @@ void call_add_arg (Fun_Call* C, Astn* arg)
 }
 
 // ========================================================================= //
+
+
+// ========================================================================= //
 Body_Block* new_body ()
 {
         Body_Block* B = malloc (sizeof (Body_Block));
@@ -265,7 +309,7 @@ Body_Block* new_body ()
                 exit (EXIT_FAILURE);
         }
 
-        B->vars = new_varlist();
+        B->vars = NULL;
 
         return B;
 }
@@ -296,6 +340,8 @@ Var_List* body_get_varlist (Body_Block* B)
 {
         return B->vars;
 }
+
+// ========================================================================= //
 
 
 // ========================================================================= //
@@ -372,21 +418,28 @@ bool isin_program_fun (AST_Program* A, char* name)
 Fun_Type* program_get_fun (AST_Program* A, char* name)
 {
         size_t i = 0;
+        size_t n = A->function_count;
+
+        if (n == 1 && A->functions[i] == NULL) {
+                return NULL;
+        }
+
         while (i < A->function_count) {
                 Astn* node = A->functions[i];
-                if (node->kind != NODE_FUN_DEC) {
-                        // Error
-                        // TODO
-                }
+                if (node != NULL) {
+                        if (node->kind != NODE_FUN_DEC) {
+                                printf ("node in programs list is not a function declaration\n");
+                                exit (EXIT_FAILURE);
+                        }
 
-                Fun_Type* F = node->data.fun_dec;
-                if (strcmp (F->fun_name, name) == 0) {
-                        return F;
+                        Fun_Type* F = node->data.fun_dec;
+                        if (strcmp (F->fun_name, name) == 0) {
+                                return F;
+                        }
                 }
                 i++;
         }
         return NULL;
 }
-
 
 // ========================================================================= //

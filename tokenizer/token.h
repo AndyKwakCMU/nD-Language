@@ -27,11 +27,12 @@ typedef enum {
 	TOK_RETURN,
 	TOK_TYPEDEF,
 
+	TOK_MUT,
 	TOK_INT_TYPE,
-	TOK_INT_MUT_TYPE,
 	TOK_CHAR_TYPE,
-	TOK_CHAR_MUT_TYPE,
 	TOK_NONE_TYPE,
+	TOK_LIST_TYPE,
+	TOK_STRING_TYPE,
 
 	TOK_LPAREN,
 	TOK_RPAREN,
@@ -82,6 +83,8 @@ typedef enum {
 typedef struct Token {
 	TokenType type;
 	char* lexeme;
+	size_t row;
+	size_t col;
 } Token;
 
 // ========================================================================= //

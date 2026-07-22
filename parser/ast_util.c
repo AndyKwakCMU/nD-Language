@@ -12,7 +12,15 @@
 #include "../utils.h"
 
 // ========================================================================= //
+void print_ast (Astn* A);
 
+void print_body (Body_Block* B);
+
+void print_type (Type* type);
+
+void print_varlist (Var_List* V);
+
+void print_var (Var* var);
 
 // ========================================================================= //
 void print_type (Type* type)
@@ -22,14 +30,9 @@ void print_type (Type* type)
                         case INT :
                                 printf ("int\n");
                                 break;
-                        case INT_MUT :
-                                printf ("mutable int\n");
-                                break;
+
                         case CHAR :
                                 printf ("char\n");
-                                break;
-                        case CHAR_MUT :
-                                printf ("mutable char\n");
                                 break;
                         default :
                                 printf ("kind not matching with data\n");
@@ -43,16 +46,28 @@ void print_type (Type* type)
                 print_type (type->data.tree->input);
                 printf ("right:\n");
                 print_type (type->data.tree->output);
+        } else if (type->kind == MUTABLE) {
+                printf ("Mutable: \n");
+                print_type (type->data.mutable);
         } else { // USER
-                printf ("User struct: %s\n", type->data.user->struct_name);
-                size_t i = 0;
-                size_t n = type->data.user->num_struct;
-                while (i <= n) {
-                        printf ("cont_name: %s\n", 
-                                type->data.user->struct_types[i]->cont_name);
-                        print_type (type->data.user->struct_types[i]->cont_type);
+                printf ("User struct: %s\n", type->data.user->name);
+                if (type->data.user->kind == STRUCT) {
+                        printf ("struct:\n");
+                        print_varlist (type->data.user->data.Struct);
+                } else {
+                        printf ("Alias:\n");
+                        print_type (type->data.user->data.Alias);
                 }
         }
+        
+}
+
+void print_var (Var* var)
+{
+        printf ("Variable name: '%s', Type: \n", var->name);
+        print_type (var->type);
+        printf ("Value: \n");
+        print_ast  (var->value);
 }
 
 void print_param (Var_List* params)
@@ -68,26 +83,24 @@ void print_param (Var_List* params)
                 print_type (params->variables[i]->type);
                 i++;
         }
+        
 }
 
 void print_varlist (Var_List* V)
 {
         if (!V) {
-                perror ("parameter list uninitialized");
-                exit (EXIT_FAILURE);
-        }
-
-        size_t i = 0;
-        while (i < V->num_var) {
-                printf ("Variable #%zu name: '%s', Type: \n", i, V->variables[i]->name);
-                print_type (V->variables[i]->type);
-                i++;
+                perror ("variable list uninitialized");
+        } else {
+                size_t i = 0;
+                while (i < V->num_var) {
+                        printf ("Variable No: %zu ", i);
+                        print_var (V->variables[i]);
+                        i++;
+                }
         }
 }
 
-void print_ast (Astn* A); // forward declaration
 
-void print_body (Body_Block* B); // forward declaration
 
 void print_cond (Cond_Expr* C)
 {
@@ -164,6 +177,18 @@ void print_ast (Astn* A)
         } else if (A->kind == NODE_BODY) {
                 printf ("Body Node: \n");
                 print_body (A->data.body_block);
+        } else if (A->kind == NODE_LAMBDA) {
+                printf ("Lambda Node :\n");
+                printf ("Variable:\n");
+                print_var (A->data.lambda->var);
+                printf ("Function:\n");
+                print_ast (A->data.lambda->function);
+        } else if (A->kind == NODE_LAMCALL) {
+                printf ("Lambda Call Node: \n");
+                printf ("Argument:\n");
+                print_ast (A->data.lam_call->arg);
+                printf ("Function:\n");
+                print_ast (A->data.lam_call->function);
         } else {
                 printf ("AST Kind did not match?????\n");
         }
@@ -177,15 +202,18 @@ void print_body (Body_Block* body)
                 return;
         }
         
-        printf ("Variables in body scope: \n");
-        print_varlist (body->vars);
-
+        if (body->vars != NULL) {
+                printf ("Variables in body scope: \n");
+                print_varlist (body->vars);
+        }
 
         printf ("Body Instructions: \n");
         size_t i = 0;
         while (i < body->num_inst) {
                 print_ast (body->inst[i++]);
+                
         }
+        
 }
 
 void print_function (Astn* fun, size_t i)
@@ -211,14 +239,43 @@ void print_function (Astn* fun, size_t i)
         printf ("Does it look any good?\n");
 }
 
+void print_user_type (User_Type* U)
+{
+        printf ("Name: %s, ", U->name);
+        
+        if (U->kind == STRUCT) {
+                printf ("Kind: STRUCT...Printing Varlist:\n");
+                print_varlist (U->data.Struct);
+        } else {
+                printf ("Kind: ALIAS...Printing Type\n");
+                print_type (U->data.Alias);
+        }
+        
+}
+
+void print_GUser (GUser_Types* G)
+{
+        size_t i = 0;
+        size_t n = G->num;
+
+        while (i < n) {
+                printf ("User type #%zu:\n", i);
+                print_user_type (G->typelist[i++]);
+        }
+}
+
 void print_ASTProgram (AST_Program* A) 
 {
         printf ("Print debug of the nD parser\n");
+        printf ("User Defined Types:\n");
+        print_GUser (A->G);
+
         printf ("Functions:\n");
         
         size_t i = 0;
         while (i < A->function_count) {
                 print_function (A->functions[i], i);
+                
                 i++;
         }
 
