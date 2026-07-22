@@ -20,6 +20,7 @@
 
 #include "parser.h"
 #include "ast.h"
+#include "ast_util.h"
 
 // ========================================================================= //
 AST_Program* parse (Stream* S);
@@ -154,6 +155,11 @@ void typedef_handler (AST_Program* A, GUser_Types* G, Stream* S)
         }
 
         GUser_add (G, U);
+
+        #ifdef DEBUG
+        printf ("current state of GUSER:\n");
+        print_GUser (G);
+        #endif
 }
 
 // ========================================================================= //
@@ -543,8 +549,9 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                                 // Identifier is a function call
                                 left_node->kind = NODE_FUN_CALL;
                                 left_node->data.fun_call = fun_call_handler (A, G, F, S);
-                        } else if (isin_GUser_var (G, curr_tok->lexeme)) {
+                        } else {
                                 // Identifier is a variable inside a struct
+                                // maybe... but we cant check here!
                                 left_node->kind = NODE_LITERAL;
                                 left_node->data.literal = malloc (sizeof (Literal_Expr));
                                 if (!left_node->data.literal) {
@@ -552,10 +559,11 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                                 }
                                 left_node->data.literal->type = LIT_VAR;
                                 left_node->data.literal->value.var = 
-                                                get_GUser_var (G, curr_tok->lexeme);
-                        } else {
-                                // syntax error
-                                serr (stream_curr(S), "expr identifier undeclared");
+                                                malloc (sizeof (Var));
+                                left_node->data.literal->value.var->name = 
+                                                strdup (stream_curr(S)->lexeme);
+                                left_node->data.literal->value.var->type = NULL;
+                                left_node->data.literal->value.var->value = NULL;
                         }
                 } else if (curr_type == TOK_MINUS) {
                         // negative sign
@@ -634,6 +642,7 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                         new->kind = NODE_BINARY_EXPR;
                         new->data.binary = malloc (sizeof (Binary_Expr));
                         new->data.binary->op = curr_type;
+
 
                         new->data.binary->left = left_node;
                         new->data.binary->right = expr_help (A, G, F, S, lbp);

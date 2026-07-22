@@ -25,7 +25,9 @@ void print_var (Var* var);
 // ========================================================================= //
 void print_type (Type* type)
 {
-        if (type->kind == VALUE) {
+        if (!type) {
+                printf ("No Type\n");
+        } else if (type->kind == VALUE) {
                 switch (type->data.base) {
                         case INT :
                                 printf ("int\n");
@@ -64,10 +66,14 @@ void print_type (Type* type)
 
 void print_var (Var* var)
 {
-        printf ("Variable name: '%s', Type: \n", var->name);
-        print_type (var->type);
-        printf ("Value: \n");
-        print_ast  (var->value);
+        if (!var) {
+                printf ("No var\n");
+        } else {
+                printf ("Variable name: '%s', Type: \n", var->name);
+                print_type (var->type);
+                printf ("Value: \n");
+                print_ast  (var->value);
+        }
 }
 
 void print_param (Var_List* params)
