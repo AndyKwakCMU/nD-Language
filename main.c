@@ -20,6 +20,8 @@
 #include "parser/parser.h"
 #include "parser/ast_util.h"
 
+//#include "SA/semantic.h"
+
 // printing the array of token shit
 /*
 #include "tokenizer/tokenize_array.h"
@@ -54,6 +56,7 @@ int main (int argc, char**argv)
 
 	printf ("Debug Mode: %d\n", debug_mode);
 
+	#ifdef DEBUG
 	printf ("Printing stream ...\n");
 	FILE* pstrm = fopen (filename, "r");
 	Stream* P = new_stream (pstrm);
@@ -61,6 +64,7 @@ int main (int argc, char**argv)
 	stream_free (P);
 	fclose (pstrm);
 	printf ("Sucess!\n");
+	#endif
 
 	printf ("Opening file ...");
 	FILE* fptr = fopen (filename, "r");
@@ -83,10 +87,31 @@ int main (int argc, char**argv)
 	stream_free (S);
 	fclose (fptr);
 
+	#ifdef DEBUG
 	printf ("Printing Result ...");
 	print_ASTProgram (A);
 	printf ("Sucess!\n");
+	#endif
 
+	/*
+	printf ("Analyzing Semantics of AST ...");
+	semantic_analysis (A);
+	#ifdef DEBUG
+	print_ASTProgram (A);
+	#endif
+	printf ("Sucess!\n");
+	*/
+
+
+	/*
+	printf ("Generating Bytecode ...");
+	BC* B = IR_Comp (A);
+	// free_ASTProgram (A);
+	#ifdef DEBUG
+	print_BC (B);
+	#endif
+	printf ("Sucess!\n");
+	*/
 
 	printf ("Oh hell yeah!\n");
 	return 0;

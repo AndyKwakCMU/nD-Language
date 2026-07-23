@@ -1,0 +1,22 @@
+typedef chris = {
+        andy : int$ = 67;
+        elwin : int$ = 41;
+        rohit : chris*->none = increment;
+}
+
+fun increment (john : (chris*)$) : none
+{
+        john->andy += 1;
+        john->elwin += 1;
+}
+
+typedef farnam = chris*;
+
+fun main () : int
+[
+        x : farnam$;
+] 
+{
+        x->rohit;
+        return 0;
+}

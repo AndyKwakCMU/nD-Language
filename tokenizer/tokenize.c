@@ -279,12 +279,22 @@ Token* switch_handler (int c, FILE* fptr, dbug* D)
 			t->type = TOK_COMMA;
 			break;
 		case '+' :
-			t->type = TOK_PLUS;
+			c = fgetc (fptr);
+			if (c == '=') {
+				t->type = TOK_ADD_ASSIGN;
+				D->col++;
+			} else {
+				ungetc (c, fptr);
+				t->type = TOK_PLUS;
+			}
 			break;
 		case '-' :
 			c = fgetc (fptr);
 			if (c == '>') {
 				t->type = TOK_ARROW_TYPE;
+				D->col++;
+			} else if (c == '=') {
+				t->type = TOK_SUB_ASSIGN;
 				D->col++;
 			} else {
 				ungetc (c, fptr);
@@ -292,10 +302,24 @@ Token* switch_handler (int c, FILE* fptr, dbug* D)
 			}
 			break;
 		case '*' :
-			t->type = TOK_STAR;
+			c = fgetc (fptr);
+			if (c == '=') {
+				t->type = TOK_MUL_ASSIGN;
+				D->col++;
+			} else {
+				ungetc (c, fptr);
+				t->type = TOK_STAR;
+			}
 			break;
 		case '/' :
-			t->type = TOK_SLASH;
+			c = fgetc (fptr);
+			if (c == '=') {
+				t->type = TOK_DIV_ASSIGN;
+				D->col++;
+			} else {
+				ungetc (c, fptr);
+				t->type = TOK_SLASH;
+			}
 			break;
 		case '=' :
 			c = fgetc (fptr);

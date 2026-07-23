@@ -219,7 +219,7 @@ Var* fun_varlist_get_var (Fun_Type* F, char* name)
         while (i < F->num_var) {
                 Var_List* V = F->variables[i];
                 size_t j = 0;
-                while (j < V->num_var) {
+                while (V != NULL && j < V->num_var) {
                         if (strcmp(V->variables[j]->name, name) == 0) {
                                 return V->variables[j];
                         }

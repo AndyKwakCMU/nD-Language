@@ -15,5 +15,5 @@ fun main () : int
 {
         x->andy = 67;
         x->elwin = 41;
-        return 1;
+        return 0;
 }

@@ -87,7 +87,9 @@ Var_List* user_struct_handler (AST_Program* A, GUser_Types* G, Stream* S)
                         print_token (stream_curr(S));
                         #endif
 
-                        free (fun_var_rem (F));
+                        fun_var_rem (F);
+
+
                         stream_next(S); // now should be semicolon
                 } 
 
@@ -99,6 +101,8 @@ Var_List* user_struct_handler (AST_Program* A, GUser_Types* G, Stream* S)
                 if (stream_curr(S)->type != TOK_SEMICOLON) {
                         serr (stream_curr(S), "syntax error at user struct declaration");
                 } 
+
+                varlist_add (V, var);
         }
 
         return V;
@@ -163,6 +167,7 @@ void typedef_handler (AST_Program* A, GUser_Types* G, Stream* S)
 }
 
 // ========================================================================= //
+/*
 int type_nud_lookup (GUser_Types* G, Token* tok)
 {
         TokenType tok_type = tok->type;
@@ -184,6 +189,7 @@ int type_nud_lookup (GUser_Types* G, Token* tok)
         }
         return 0;
 }
+*/
 
 int type_led_lookup (GUser_Types* G, Token* tok)
 {
@@ -233,7 +239,6 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
                         serr (stream_curr(S), "type parenthesis not closed");
                 }
         } else {
-                type_nud_lookup (G, curr_tok);
                 left_node = malloc (sizeof (Type));
                 if (curr_type == TOK_INT_TYPE) {
                         left_node->kind = VALUE;
@@ -247,9 +252,19 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
                 } else if (curr_type == TOK_LIST_TYPE) {
                         left_node->kind = LIST;
                         left_node->data.list = type_handler (G, S);
+                } else if (curr_type == TOK_NONE_TYPE) {
+                        left_node->kind = NONE;
+                        left_node->data.pointer = NULL;
                 } else if (curr_type == TOK_IDENTIFIER) {
                         left_node->kind = USER;
-                        left_node->data.user = get_GUser (G, curr_tok->lexeme);
+                        if (isin_GUser (G, stream_curr(S)->lexeme)) {
+                                left_node->data.user = get_GUser (G, curr_tok->lexeme);
+                        } else {
+                                left_node->data.user = malloc (sizeof (User_Type));
+                                left_node->data.user->name = strdup (stream_curr(S)->lexeme);
+                                left_node->data.user->kind = HOLD;
+                        }
+                        
                 } else {
                         serr (stream_curr(S), "type identifier undeclared");
                 }
@@ -322,31 +337,16 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
 Astn* expr_handler (AST_Program* A, GUser_Types* G, 
                     Fun_Type* fun, Stream* S);
 
-
-Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G, 
-                            Fun_Type* F, Stream* S)
+void fun_call_arg_handler (AST_Program* A, GUser_Types* G, 
+                            Fun_Type* F, Stream* S, Fun_Call* C)
 {
         #ifdef DEBUG
-        printf ("fun call handler debug print token 1\n");
+        printf ("fun call arg handler debug print token 1\n");
         print_token (stream_curr(S));
         #endif
-
-        char* name = strdup (stream_curr(S)->lexeme);
-        Fun_Call* C = malloc (sizeof (Fun_Call));
-        C->fun_name = name;
-        
-
-        // function name should be followed by parenthesis and args
-        if (stream_next(S)->type != TOK_LPAREN) {
-                // syntax error
-                serr (stream_curr(S), "function call missing LPAREN");
-        }
-
-        
-
         while (stream_peek(S)->type != TOK_RPAREN) {
                 #ifdef DEBUG
-                printf ("fun call handler debug print token 2\n");
+                printf ("fun call arg handler debug print token 2\n");
                 print_token (stream_curr(S));
                 #endif
                 // expr_handler will keep going through tokens until it hits
@@ -355,7 +355,7 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
                 call_add_arg (C, expr_handler (A, G, F, S));
 
                 #ifdef DEBUG
-                printf ("fun call handler debug print token 3\n");
+                printf ("fun call arg handler debug print token 3\n");
                 print_token (stream_curr(S));
                 #endif
 
@@ -371,7 +371,41 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
                 // function arg not closed, syntax error
                 serr (stream_curr(S), "function call arg not closed");
         }
+}
 
+Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G, 
+                            Fun_Type* F, Stream* S)
+{
+        #ifdef DEBUG
+        printf ("fun call handler debug print token 1\n");
+        print_token (stream_curr(S));
+        #endif
+
+        char* name = strdup (stream_curr(S)->lexeme);
+        Fun_Call* C = malloc (sizeof (Fun_Call));
+        C->fun_name = name;
+        
+
+        
+        if (stream_next(S)->type == TOK_LPAREN) {
+                // function name should be followed by parenthesis and args
+                fun_call_arg_handler (A, G, F, S, C);
+                #ifdef DEBUG
+                printf ("fun call handler debug print token 2\n");
+                print_token (stream_curr(S));
+                #endif
+        }
+
+        // simply the function as value
+        #ifdef DEBUG
+        printf ("fun call handler debug print token 3\n");
+        print_token (stream_curr(S));
+        #endif
+
+
+        if (stream_curr(S)->type != TOK_SEMICOLON) {
+                serr (stream_curr(S), "fun call value not ended with semicolon");
+        }
 
         return C;
 }
@@ -489,6 +523,14 @@ int expr_led (TokenType t)
                 case TOK_OR :
                         return 2;
                 case TOK_ASSIGN :
+                        return 1;
+                case TOK_ADD_ASSIGN :
+                        return 1;
+                case TOK_SUB_ASSIGN :
+                        return 1;
+                case TOK_MUL_ASSIGN :
+                        return 1;
+                case TOK_DIV_ASSIGN :
                         return 1;
                 default :
                         return -1;

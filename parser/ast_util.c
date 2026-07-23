@@ -51,11 +51,15 @@ void print_type (Type* type)
         } else if (type->kind == MUTABLE) {
                 printf ("Mutable: \n");
                 print_type (type->data.mutable);
+        } else if (type->kind == NONE) {
+                printf ("None type\n");
         } else { // USER
                 printf ("User struct: %s\n", type->data.user->name);
                 if (type->data.user->kind == STRUCT) {
                         printf ("struct:\n");
                         print_varlist (type->data.user->data.Struct);
+                } else if (type->data.user->kind == HOLD) {
+                        printf ("PlaceHolder\n");
                 } else {
                         printf ("Alias:\n");
                         print_type (type->data.user->data.Alias);
@@ -275,13 +279,14 @@ void print_ASTProgram (AST_Program* A)
         printf ("Print debug of the nD parser\n");
         printf ("User Defined Types:\n");
         print_GUser (A->G);
+        printf ("\n\n");
 
         printf ("Functions:\n");
         
         size_t i = 0;
         while (i < A->function_count) {
                 print_function (A->functions[i], i);
-                
+                printf ("\n\n");
                 i++;
         }
 

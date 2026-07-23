@@ -22,5 +22,5 @@ fun main (a : int, b : int->int) : int # return type
                 x = x + 1;
         }
 
-        return 1;
+        return 0;
 }

@@ -97,6 +97,8 @@ char* tokenType2string (TokenType type)
                         return "TOK_IDENTIFIER";
                 case TOK_INT_LITERAL :
                         return "TOK_INT_LITERAL";
+                case TOK_CHAR_LITERAL :
+                        return "TOK_CHAR_LITERAL";
                 case TOK_FN :
                         return "TOK_FN";
                 case TOK_LAMBDA :
@@ -169,6 +171,14 @@ char* tokenType2string (TokenType type)
                         return "TOK_STAR";
                 case TOK_SLASH :
                         return "TOK_SLASH";
+                case TOK_ADD_ASSIGN :
+                        return "TOK_ADD_ASSIGN";
+                case TOK_SUB_ASSIGN :
+                        return "TOK_SUB_ASSIGN";
+                case TOK_MUL_ASSIGN :
+                        return "TOK_MUL_ASSIGN";
+                case TOK_DIV_ASSIGN :
+                        return "TOK_DIV_ASSIGN";
                 case TOK_ASSIGN :
                         return "TOK_ASSIGN";
                 case TOK_MATCH_ARROW :

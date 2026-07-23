@@ -24,7 +24,8 @@ typedef enum {
         MUTABLE,
         FUNCTION,
         USER,
-        LIST
+        LIST,
+        NONE
 } Type_Kind;
 
 typedef struct Type Type;
@@ -46,7 +47,7 @@ typedef struct User_Type User_Type;
 
 struct Type {
         Type_Kind kind;
-        size_t size;
+        size_t alloc_size;
         union {
                 Type_Tree* tree; // function type
 
@@ -93,7 +94,8 @@ struct User_Type {
         char* name;
         enum {
                 STRUCT,
-                ALIAS
+                ALIAS,
+                HOLD
         } kind;
         union {
                 Var_List* Struct;
