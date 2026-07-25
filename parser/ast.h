@@ -240,12 +240,12 @@ struct AST_Node {
                 Literal_Expr* literal;
                 Binary_Expr*  binary;
                 Unary_Expr*   unary;
-                Loop_Expr*    loop;
-                Cond_Expr*    cond;
                 Fun_Type*     fun_dec;
                 Fun_Call*     fun_call;
                 Lambda_Expr*  lambda;
                 Lambda_Call*  lam_call;
+                Loop_Expr*    loop;
+                Cond_Expr*    cond;
                 Body_Block*   body_block;
         } data;
 };
@@ -307,6 +307,8 @@ Var_List* fun_var_rem (Fun_Type* F);
 void fun_param_add (Fun_Type* F, Var* v);
 
 // ========================================================================= //
+Fun_Call* new_call (char* name);
+
 void call_add_arg (Fun_Call* C, Astn* arg);
 
 // ========================================================================= //

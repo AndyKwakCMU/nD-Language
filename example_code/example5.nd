@@ -1,0 +1,15 @@
+fun chris (x : int) : int
+{
+        if (x == 1) {
+                return 1;
+        }
+        return 0;
+}
+
+fun main () : int
+{
+        if (chris (1) == 0) {
+                return 1;
+        }
+        return chris (0);
+}

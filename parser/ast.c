@@ -272,6 +272,27 @@ Var_List* fun_var_rem (Fun_Type* F)
 
 
 // ========================================================================= //
+Fun_Call* new_call (char* name)
+{
+        Fun_Call* C = malloc (sizeof (Fun_Call));
+        if (!C) {
+                printf ("function call allocation fail\n");
+                exit (EXIT_FAILURE);
+        }
+
+        C->fun_name = strdup (name);
+        C->num_arg = 0;
+        C->arg_cap = 4;
+
+        C->args = malloc (sizeof (Astn*) * C->arg_cap);
+        if (!C->args) {
+                printf ("function call AST list allocation fail\n");
+                exit (EXIT_FAILURE);
+        }
+
+        return C;
+}
+
 void call_add_arg (Fun_Call* C, Astn* arg)
 {
         C->args[(C->num_arg)++] = arg;

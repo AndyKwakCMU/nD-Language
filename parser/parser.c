@@ -364,10 +364,9 @@ void fun_call_arg_handler (AST_Program* A, GUser_Types* G,
                         // Syntax error
                         serr (stream_curr(S), "function call arg syntax error");
                 }
-                stream_next(S);
         }
 
-        if (stream_curr(S)->type != TOK_RPAREN) {
+        if (stream_next(S)->type != TOK_RPAREN) {
                 // function arg not closed, syntax error
                 serr (stream_curr(S), "function call arg not closed");
         }
@@ -381,11 +380,7 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
         print_token (stream_curr(S));
         #endif
 
-        char* name = strdup (stream_curr(S)->lexeme);
-        Fun_Call* C = malloc (sizeof (Fun_Call));
-        C->fun_name = name;
-        
-
+        Fun_Call* C = new_call (stream_curr(S)->lexeme);
         
         if (stream_next(S)->type == TOK_LPAREN) {
                 // function name should be followed by parenthesis and args
@@ -401,11 +396,6 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
         printf ("fun call handler debug print token 3\n");
         print_token (stream_curr(S));
         #endif
-
-
-        if (stream_curr(S)->type != TOK_SEMICOLON) {
-                serr (stream_curr(S), "fun call value not ended with semicolon");
-        }
 
         return C;
 }

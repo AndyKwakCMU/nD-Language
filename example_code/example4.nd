@@ -17,6 +17,6 @@ fun main () : int
         x : farnam$;
 ] 
 {
-        x->rohit;
+        x->rohit (x);
         return 0;
 }
