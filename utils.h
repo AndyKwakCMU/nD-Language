@@ -31,4 +31,6 @@ void print_stream (Stream* S);
 void aerr (Token* t);
 void serr (Token* t, char* msg);
 
+void saerr (char* msg);
+
 #endif

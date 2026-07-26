@@ -8,153 +8,157 @@
 
 /*
 
- Further details of the semantic analysis is that my AST with user structs
- mostly hold a placeholder, they need to be rigourous type checked as well
- as check for the existence of them. Alias types and such should be efficiently
- checked as well.
+        Further details of the semantic analysis is that my AST with user structs
+        mostly hold a placeholder, they need to be rigourous type checked as well
+        as check for the existence of them. Alias types and such should be efficiently
+        checked as well.
 
- Another set of concerns is checking if the type is mutable, and invalidating
- any mutations on non-mutable variables. This also applies to user struct
- variables. 
+        Another set of concerns is checking if the type is mutable, and invalidating
+        any mutations on non-mutable variables. This also applies to user struct
+        variables.
 
- We also have partial evaluation of functions, that will be type checked, 
- and make sure the output of the function, or the partial function, is 
- still valid logically and semantically in the program. 
+        We also have partial evaluation of functions, that will be type checked,
+        and make sure the output of the function, or the partial function, is
+        still valid logically and semantically in the program.
 
 */
 // ========================================================================= //
 
-
 // ========================================================================= //
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include <assert.h>
 
-#include "../tokenizer/token.h"
 #include "../parser/ast.h"
+#include "../tokenizer/token.h"
 #include "../utils.h"
 
 // ========================================================================= //
 
+// ========================================================================= //
+void semantic_analysis(AST_Program *A);
+
+void ast_check(Astn *A);
+
+bool is_type(Astn *A, Type *T);
 
 // ========================================================================= //
-void semantic_analysis (AST_Program* A);
-
-void ast_check (Astn* A);
-
-bool is_type (Astn* A, Type* T);
 
 // ========================================================================= //
-
-
-// ========================================================================= //
-bool is_type (Astn* A, Type* T)
-{
-
-}
-
-void literal_check (Literal_Expr* data)
-{
+bool is_type(Astn *A, Type *T) {
         // TODO
 }
 
-void binary_check (Binary_Expr* data)
-{
+void literal_check(Literal_Expr *data) {
         // TODO
 }
 
-void unary_check (Unary_Expr* data)
-{
+void binary_check(Binary_Expr *data) {
         // TODO
 }
 
-void fun_check (Fun_Type* data)
-{
+void unary_check(Unary_Expr *data) {
         // TODO
 }
 
-void call_check (Fun_Call* data)
-{
+void call_check(Fun_Call *data) {
         // TODO
 }
 
-void lambda_check (Fun_Type* data)
-{
+void lambda_check(Fun_Type *data) {
         // TODO
 }
 
-void lamcall_check (Fun_Type* data)
-{
+void lamcall_check(Fun_Type *data) {
         // TODO
 }
 
-void loop_check (Fun_Type* data)
-{
+void loop_check(Fun_Type *data) {
         // TODO
 }
 
-void cond_check (Fun_Type* data)
-{
+void cond_check(Fun_Type *data) {
         // TODO
 }
 
-void body_check (Fun_Type* data)
-{
+void body_check(Fun_Type *data) {
         // TODO
 }
 
-void ast_check (Astn* A)
-{
-        Node_Kind k = A->kind;
-        switch (k) {
-                case NODE_LITERAL :
-                        literal_check (A->data.literal);
-                        break;
-                case NODE_BINARY_EXPR :
-                        binary_check (A->data.binary);
-                        break;
-                case NODE_UNARY_EXPR :
-                        unary_check (A->data.unary);
-                        break;
-                case NODE_FUN_DEC :
-                        fun_check (A->data.fun_dec);
-                        break;
-                case NODE_FUN_CALL :
-                        call_check (A->data.fun_call);
-                        break;
-                case NODE_LAMBDA :
-                        lambda_check (A->data.lambda);
-                        break;
-                case NODE_LAMCALL :
-                        lamcall_check (A->data.lam_call);
-                        break;
-                case NODE_LOOP :
-                        loop_check (A->data.loop);
-                        break;
-                case NODE_COND :
-                        cond_check (A->data.cond);
-                        break;
-                case NODE_BODY :
-                        body_check (A->data.body_block);
-                        break;
-                default :
-                        // Every node should have a kind, it
-                        // shouldnt reach here.
-                        printf ("ast check kind did not match");
-                        exit (EXIT_FAILURE);
+bool is_fun(Fun_Type *F) {
+        if (!F)
+                return false;
+        if (!F->fun_name)
+                return false;
+        if (!F->ret_type)
+                return false;
+        if (!F->variables)
+                return false;
+        if (!F->body)
+                return false;
+
+        // TODO: more rigourous check on Fun_Type
+
+        return true;
+}
+
+// Making sure there is only one function of its name
+void fun_name_check(AST_Program *A, char *name) {
+        size_t i = 0;
+        size_t n = A->function_count;
+
+        int count = 0;
+
+        while (i < n) {
+                Astn *ast = A->functions[i++];
+                if (ast->kind != NODE_FUN_DEC) {
+                        saerr("AST_Program functions list does not have function delcaration");
+                }
+
+                Fun_Type *F = ast->data.fun_dec;
+                if (strcmp(name, F->fun_name) == 0)
+                        count++;
         }
+
+        if (count > 1) {
+                printf("Too many functions of the name %s is in AST_Program", name);
+                saerr("");
+        } else if (count < 1) {
+                printf("No functions of the name %s is in AST_Program", name);
+                saerr("");
+        } // else (count == 1) do nothing
 }
 
-void semantic_analysis (AST_Program* AP)
-{
+void fun_check(AST_Program *A, GUser_Types *G, Fun_Type *F) {
+        REQUIRES(is_fun(F));
+
+        fun_name_check(A, F->fun_name);
+
+        // variable list check....hmmm what happened to variable lists that were out
+        // of scope? did they remain in the body variable list? how do we add them all
+        // up for a singular function arena allocation
+
+        // body check, which will call the body checker
+}
+
+void semantic_analysis(AST_Program *AP) {
         size_t i = 0;
         size_t n = AP->capacity;
+        GUser_Types *G = AP->G;
         while (i < n) {
-                ast_check (AP->functions[i++]);
+                Astn *ast = AP->functions[i];
+                if (ast->kind != NODE_FUN_DEC) {
+                        saerr("AST_Program functions list does not have function declaration");
+                }
+
+                Fun_Type *F = ast->data.fun_dec;
+                fun_check(AP, G, F);
+                i++;
         }
+
+        // TODO: A final ast program checker
+        // ENSURES (is_final_astprog (AP));
 }
 
-
 // ========================================================================= //
-

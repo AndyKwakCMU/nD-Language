@@ -230,3 +230,10 @@ void serr (Token* t, char* msg)
         exit (EXIT_FAILURE);
 }
 
+void saerr (char* msg)
+{
+        printf ("\n\nSemantic Analysis Error\n");
+        printf ("%s\n\n", msg);
+        exit (EXIT_FAILURE);
+}
+
