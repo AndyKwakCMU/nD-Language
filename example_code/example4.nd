@@ -1,8 +1,4 @@
-typedef chris = {
-        andy : int$ = 67;
-        elwin : int$ = 41;
-        rohit : chris*->none = increment;
-}
+typedef chris;
 
 fun increment (john : (chris*)$) : none
 {
@@ -10,11 +6,17 @@ fun increment (john : (chris*)$) : none
         john->elwin += 1;
 }
 
-typedef farnam = chris*;
+typedef chris = {
+        andy : int$ = 67;
+        elwin : int$ = 41;
+        rohit : chris*->none = increment;
+}
+
+typedef david = chris*;
 
 fun main () : int
 [
-        x : farnam$;
+        x : david$ = new;
 ] 
 {
         x->rohit (x);

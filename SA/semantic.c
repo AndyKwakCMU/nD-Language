@@ -26,6 +26,7 @@
 
 // ========================================================================= //
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 #include <assert.h>
@@ -39,54 +40,19 @@
 // ========================================================================= //
 void semantic_analysis(AST_Program *A);
 
-void ast_check(Astn *A);
+void fill_hold (AST_Program* A, GUser_Types* G, Astn* ast);
 
-bool is_type(Astn *A, Type *T);
+Type* ast_check (AST_Program* A, GUser_Types* G, Type* ret_type, Astn* ast);
+
+Type* binary_check (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* ast);
+
+void body_check (AST_Program* A, GUser_Types* G, Type* ret_type, Body_Block* B);
 
 // ========================================================================= //
 
 // ========================================================================= //
-bool is_type(Astn *A, Type *T) {
-        // TODO
-}
-
-void literal_check(Literal_Expr *data) {
-        // TODO
-}
-
-void binary_check(Binary_Expr *data) {
-        // TODO
-}
-
-void unary_check(Unary_Expr *data) {
-        // TODO
-}
-
-void call_check(Fun_Call *data) {
-        // TODO
-}
-
-void lambda_check(Fun_Type *data) {
-        // TODO
-}
-
-void lamcall_check(Fun_Type *data) {
-        // TODO
-}
-
-void loop_check(Fun_Type *data) {
-        // TODO
-}
-
-void cond_check(Fun_Type *data) {
-        // TODO
-}
-
-void body_check(Fun_Type *data) {
-        // TODO
-}
-
-bool is_fun(Fun_Type *F) {
+bool is_fun(Fun_Type* F) 
+{
         if (!F)
                 return false;
         if (!F->fun_name)
@@ -104,7 +70,8 @@ bool is_fun(Fun_Type *F) {
 }
 
 // Making sure there is only one function of its name
-void fun_name_check(AST_Program *A, char *name) {
+void fun_name_check (AST_Program* A, char* name) 
+{
         size_t i = 0;
         size_t n = A->function_count;
 
@@ -122,40 +89,377 @@ void fun_name_check(AST_Program *A, char *name) {
         }
 
         if (count > 1) {
-                printf("Too many functions of the name %s is in AST_Program", name);
-                saerr("");
+                printf ("Too many functions of the name %s is in AST_Program", name);
+                saerr ("");
         } else if (count < 1) {
-                printf("No functions of the name %s is in AST_Program", name);
-                saerr("");
+                printf ("No functions of the name %s is in AST_Program", name);
+                saerr ("");
         } // else (count == 1) do nothing
 }
 
-void fun_check(AST_Program *A, GUser_Types *G, Fun_Type *F) {
-        REQUIRES(is_fun(F));
-
-        fun_name_check(A, F->fun_name);
-
-        // variable list check....hmmm what happened to variable lists that were out
-        // of scope? did they remain in the body variable list? how do we add them all
-        // up for a singular function arena allocation
-
-        // body check, which will call the body checker
+Type* literal_check (Literal_Expr* L)
+{
+        if (L->kind == LIT_INT) {
+                return L->type;
+        } else if (L->kind == LIT_VAR) {
+                return L->value.var->type;
+        }
+        return NULL;
 }
 
-void semantic_analysis(AST_Program *AP) {
-        size_t i = 0;
-        size_t n = AP->capacity;
-        GUser_Types *G = AP->G;
-        while (i < n) {
-                Astn *ast = AP->functions[i];
-                if (ast->kind != NODE_FUN_DEC) {
-                        saerr("AST_Program functions list does not have function declaration");
+Type* binary_check_int (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* B)
+{
+        Type* left  = ast_check (A, G, ret_type, B->left);
+        Type* right = ast_check (A, G, ret_type, B->right);
+
+        Type* integer_type = malloc (sizeof (Type));
+        if (!integer_type) {
+                printf ("test integer type allocation failed\n");
+                exit (EXIT_FAILURE);
+        }
+        integer_type->kind = VALUE;
+        integer_type->data.base = INT;
+        if (!typecmp (left, right)) {
+                saerr ("conflicting types\n");
+        }
+        if (!typecmp (left, integer_type)) {
+                saerr ("Arithmetic on non integer types\n");
+        }
+        if (!typecmp (right, integer_type)) {
+                saerr ("Arithmetic on non integer types\n");
+        }
+
+        free (integer_type);
+        return left;
+}
+
+Type* replace_op_assign (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* B)
+{
+        Astn* new = malloc (sizeof (Astn));
+        if (!new) {
+                printf ("add assign replacement astn allocation fail\n");
+                exit (EXIT_FAILURE);
+        }
+
+        new->kind = NODE_BINARY_EXPR;
+        new->data.binary = malloc (sizeof (Binary_Expr));
+        if (!new->data.binary) {
+                printf ("add assign replacement binary expr allocation fail\n");
+                exit (EXIT_FAILURE);
+        }
+
+        new->data.binary->right = B->right;
+        new->data.binary->left  = astcp (B->left);
+
+        if (B->op == TOK_ADD_ASSIGN) {
+                new->data.binary->op = TOK_PLUS;
+        } else if (B->op == TOK_SUB_ASSIGN) {
+                new->data.binary->op = TOK_MINUS;
+        } else if (B->op == TOK_MUL_ASSIGN) {
+                new->data.binary->op = TOK_STAR;
+        } else if (B->op == TOK_DIV_ASSIGN) {
+                new->data.binary->op = TOK_SLASH;
+        } else {
+                // shouldnt be here
+                saerr ("Token unmatched at replace op assign\n");
+        }
+        B->op = TOK_ASSIGN;
+
+        return binary_check (A, G, ret_type, B);
+}
+
+Type* binary_check_help (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* B)
+{
+        REQUIRES (B->op != TOK_ARROW_TYPE && B->op != TOK_DOT);
+
+        if ((B->op == TOK_PLUS || B->op == TOK_MINUS) ||
+            (B->op == TOK_STAR || B->op == TOK_SLASH)) {
+                return binary_check_int (A, G, ret_type, B);
+        } else if ((B->op == TOK_ADD_ASSIGN || B->op == TOK_SUB_ASSIGN) ||
+                   (B->op == TOK_MUL_ASSIGN || B->op == TOK_DIV_ASSIGN)) {
+                return replace_op_assign (A, G, ret_type, B);
+        } else {
+                printf ("binary experssion operator non matching");
+                exit (EXIT_FAILURE);
+        }
+
+        return NULL; // should never reach here
+}
+
+
+Type* binary_check (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* B)
+{
+        if (B->op == TOK_ARROW_TYPE) {
+                B->op = TOK_DOT;
+                Astn* left = B->left;
+                Astn* new = malloc (sizeof (Astn));
+                if (!new) {
+                        printf ("Arrow type to dot Astn allocation fail\n");
+                        exit (EXIT_FAILURE);
                 }
 
-                Fun_Type *F = ast->data.fun_dec;
-                fun_check(AP, G, F);
+                new->kind = NODE_UNARY_EXPR;
+                new->data.unary = malloc (sizeof (Unary_Expr));
+                if (!new->data.unary) {
+                        printf ("Arrow type to dot unary allocation fail\n");
+                        exit (EXIT_FAILURE);
+                }
+
+                new->data.unary->op = TOK_STAR;
+                new->data.unary->arg = left;
+                B->left = new;
+                return binary_check (A, G, ret_type, B);
+        } else if (B->op == TOK_DOT) {
+                Type* user = ast_check (A, G, ret_type, B->left);
+                
+                if (user->kind != USER) {
+                        printf ("Accessed non-struct");
+                        exit (EXIT_FAILURE);
+                }
+                ASSERT (user->kind == USER);
+
+                if (B->right->kind != NODE_LITERAL) {
+                        printf ("Struct accessed by non literal");
+                        exit (EXIT_FAILURE);
+                }
+                ASSERT (B->right->kind == NODE_LITERAL);
+
+                if (B->right->data.literal->kind != LIT_VAR) {
+                        printf ("Struct accessed by non variable\n");
+                        exit (EXIT_FAILURE);
+                }
+                ASSERT (B->right->data.literal->kind == LIT_VAR);
+
+                if (!isin_struct (user->data.user, B->right->data.literal->value.var)) {
+                        printf ("Variable not in struct\n");
+                        exit (EXIT_FAILURE);
+                }
+
+                return B->right->data.literal->type;
+        } else {
+                return binary_check_help (A, G, ret_type, B);
+        }
+
+        return NULL; // should never reach here
+}
+
+Type* unary_check (AST_Program* A, GUser_Types* G, Type* ret_type, Unary_Expr* U)
+{
+        if (U->op == TOK_RETURN) {
+                Type* arg_type = ast_check (A, G, ret_type, U->arg);
+                if (!ret_type) {
+                        saerr ("return type invalid");
+                }
+
+                if (ret_type->kind == NONE) {
+                        saerr ("none type function does not return");
+                }
+
+                if (!typecmp (ret_type, arg_type)) {
+                        printf ("Incorrect return type\n");
+                        exit (EXIT_FAILURE);
+                }
+
+                return arg_type;
+        } else if (U->op == TOK_STAR) {
+                return ast_check(A, G, ret_type, U->arg);
+        } else if (U->op == TOK_MINUS) {
+                Type* arg_type = ast_check (A, G, ret_type, U->arg);
+
+                Type* integer_type = malloc (sizeof (Type));
+                if (!integer_type) {
+                        printf ("unary check negative integer type allocation failed\n");
+                        exit (EXIT_FAILURE);
+                }
+
+                integer_type->kind = VALUE;
+                integer_type->data.base = INT;
+
+                if (!typecmp (arg_type, integer_type)) {
+                        saerr ("unary check negative sign on non integer type");
+                }
+                
+                free (integer_type);
+                return arg_type;
+        } else {
+                saerr ("unary check invalid operator");
+        }
+
+        return NULL;
+}
+
+Type* fun_call_check (AST_Program* A, GUser_Types* G, Fun_Call* C)
+{
+        if (!isin_program_fun (A, C->fun_name)) {
+                saerr ("Function call name not in program");
+        }
+
+        Fun_Type* F = program_get_fun (A, C->fun_name);
+
+        Var_List* L = F->variables[0];
+
+        if (L->num_var > C->num_arg) {
+                saerr ("function call not enough args");
+        } else if (L->num_var < C->num_arg) {
+                saerr ("function call too many args");
+        }
+
+        size_t i = 0;
+        size_t n = L->num_var;
+
+        while (i < n) {
+                Type* arg_type = ast_check (A, G, NULL, C->args[i]);
+                Type* param_type = L->variables[i]->type;
+
+                if (!typecmp (arg_type, param_type)) {
+                        printf ("Function call arg %zu not matching function param", i);
+                        saerr ("");
+                }
                 i++;
         }
+        
+        return F->ret_type;
+}
+
+void loop_check (AST_Program* A, GUser_Types* G, Type* ret_type, Loop_Expr* data)
+{
+        Type* cond_type = ast_check (A, G, NULL, data->cond);
+        Type* integer_type = malloc (sizeof (Type));
+        if (!integer_type) {
+                printf ("loop check condition interger type allocation fail");
+                exit (EXIT_FAILURE);
+        }
+
+        if (!typecmp (cond_type, integer_type)) {
+                saerr ("loop condition not int type");
+        }
+
+        free (integer_type);
+
+        body_check (A, G, ret_type, data->body);
+}
+
+void cond_check (AST_Program* A, GUser_Types* G, Type* ret_type, Cond_Expr* data)
+{
+        Type* cond_type = ast_check (A, G, ret_type, data->cond);
+        Type* integer_type = malloc (sizeof (Type));
+        if (!integer_type) {
+                printf ("cond check condition integer type allocation fail");
+                exit (EXIT_FAILURE);
+        }
+
+        if (!typecmp (cond_type, integer_type)) {
+                saerr ("cond condition not int type");
+        }
+
+        free (integer_type);
+
+        body_check (A, G, ret_type, data->body);
+
+        if (data->chain != NULL) {
+                cond_check (A, G, ret_type, data->chain);
+        }
+}
+
+Type* ast_check (AST_Program* A, GUser_Types* G, Type* ret_type, Astn* ast)
+{
+        if (ast->kind == NODE_LITERAL) {
+                return literal_check (ast->data.literal);
+        } else if (ast->kind == NODE_BINARY_EXPR) {
+                return binary_check (A, G, ret_type, ast->data.binary);
+        } else if (ast->kind == NODE_UNARY_EXPR) {
+                return unary_check (A, G, ret_type, ast->data.unary);
+        } else if (ast->kind == NODE_FUN_CALL) {
+                return fun_call_check (A, G, ast->data.fun_call);
+        } else if (ast->kind == NODE_LAMBDA) {
+                return ast_check (A, G, NULL, ast->data.lambda->function);
+        } else if (ast->kind == NODE_LAMCALL) {
+                return ast_check (A, G, NULL, ast->data.lam_call->function);
+        } else if (ast->kind == NODE_LOOP) {
+                loop_check (A, G, ret_type, ast->data.loop);
+        } else if (ast->kind == NODE_COND) {
+                cond_check (A, G, ret_type, ast->data.cond);
+        } else if (ast->kind == NODE_BODY) {
+                body_check (A, G, ret_type, ast->data.body_block);
+        } else if (ast->kind == NODE_FUN_DEC) {
+                saerr ("Function declaration not allowed inside function");
+        } else {
+                saerr ("Semantic analysis ast kind not matched");
+        }
+
+        return NULL;
+}
+
+void body_check (AST_Program* A, GUser_Types* G, Type* ret_type, Body_Block* data)
+{
+        size_t i = 0;
+        size_t n = data->num_inst;
+        
+        while (i < n - 1) {
+                ast_check (A, G, ret_type, data->inst[i++]);
+        }
+}
+
+void fun_type_check (AST_Program* A, GUser_Types* G, Fun_Type* F) 
+{
+        REQUIRES(is_fun(F));
+
+        fun_name_check (A, F->fun_name);
+
+        if ((strcmp (F->fun_name, "main") == 0 &&
+            F->ret_type->kind == VALUE) &&
+            F->ret_type->data.base != INT) {
+                saerr ("Main function return type is not int\n");
+        }
+        
+
+        // body check, which will call the body checker
+        body_check (A, G, F->ret_type, F->body);
+}
+
+size_t alloc_size (AST_Program* A, GUser_Types* G, Astn* ast)
+{
+        // TODO
+}
+
+void semantic_analysis (AST_Program *AP) 
+{
+        size_t i = 0;
+        size_t n = AP->capacity;
+        GUser_Types* G = AP->G; 
+
+        // Typecheck
+        #if DEBUG
+        printf ("Typecheck Pass...\n");
+        #endif
+        while (i < n) {
+                Astn* ast = AP->functions[i];
+                if (ast->kind != NODE_FUN_DEC) {
+                        saerr ("AST_Program functions list does not have function declaration");
+                }
+                fun_type_check (AP, G, ast->data.fun_dec);
+                i++;
+        }
+        #if DEBUG
+        printf ("Sucess!\n");
+        #endif
+
+        #if DEBUG
+        printf ("Adding up allocation sizes...\n");
+        #endif
+        while (i < n) {
+                Astn* ast = AP->functions[i];
+                if (ast->kind != NODE_FUN_DEC) {
+                        saerr ("AST_Program functions list does not have function declaration");
+                }
+                AP->size += alloc_size (AP, G, ast);
+                i++;
+        }
+        #if DEBUG
+        printf ("Sucess\n");
+        #endif
+
+        
 
         // TODO: A final ast program checker
         // ENSURES (is_final_astprog (AP));

@@ -56,13 +56,11 @@ void print_type (Type* type)
         } else { // USER
                 printf ("User struct: %s\n", type->data.user->name);
                 if (type->data.user->kind == STRUCT) {
-                        printf ("struct:\n");
-                        print_varlist (type->data.user->data.Struct);
+                        printf ("Struct\n");
                 } else if (type->data.user->kind == HOLD) {
                         printf ("PlaceHolder\n");
                 } else {
-                        printf ("Alias:\n");
-                        print_type (type->data.user->data.Alias);
+                        printf ("Alias\n");
                 }
         }
         
@@ -152,6 +150,8 @@ void print_ast (Astn* A)
                         print_type (V->type);
                         printf ("values: \n");
                         print_ast (V->value);
+                } else if (A->data.literal->type == LIT_NEW) {
+                        printf ("new allocation!\n");
                 } else {
                         printf ("Node literal but didnt match a type...\n");
                 }

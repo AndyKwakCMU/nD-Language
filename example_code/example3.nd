@@ -10,7 +10,7 @@ typedef farnam = chris*;
 
 fun main () : int
 [
-        x : farnam$;
+        x : farnam$ = new;
 ] 
 {
         x->andy = 67;

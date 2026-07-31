@@ -47,7 +47,7 @@ typedef struct User_Type User_Type;
 
 struct Type {
         Type_Kind kind;
-        size_t alloc_size;
+        size_t size;
         union {
                 Type_Tree* tree; // function type
 
@@ -92,6 +92,7 @@ struct Var_List {
 // ========================================================================= //
 struct User_Type {
         char* name;
+        size_t size;
         enum {
                 STRUCT,
                 ALIAS,
@@ -151,8 +152,10 @@ typedef struct {
         enum {
                 LIT_INT,
                 LIT_CHAR,
-                LIT_VAR
-        } type;
+                LIT_VAR,
+                LIT_NEW
+        } kind;
+        Type* type; //for int and char
         union {
                 int int_val;
                 char char_val;
@@ -248,6 +251,8 @@ struct AST_Node {
                 Cond_Expr*    cond;
                 Body_Block*   body_block;
         } data;
+
+        size_t size;
 };
 
 typedef struct {
@@ -256,6 +261,8 @@ typedef struct {
         size_t capacity;
 
         GUser_Types* G;
+
+        size_t size;
 } AST_Program;
 
 // ========================================================================= //
@@ -269,6 +276,13 @@ typedef struct {
 // struct_add  ()
 // free_struct ()
 // ========================================================================= //
+bool typecmp (Type* t1, Type* t2);
+
+bool isin_struct (User_Type* U, Var* var);
+
+Astn* astcp (Astn* ast);
+
+// ========================================================================= //
 // User types implementation
 GUser_Types* new_GUser ();
 
@@ -278,9 +292,15 @@ bool isin_GUser (GUser_Types* G, char* name);
 
 User_Type* get_GUser (GUser_Types* G, char* name);
 
+// TODO
+User_Type* get_Guser_alias (GUser_Types* G, char* name);
+
 bool isin_GUser_var (GUser_Types* G, char* name);
 
 Var* get_GUser_var (GUser_Types* G, char* name);
+
+// TODO
+void free_user_type (User_Type*);
 
 // ========================================================================= //
 Var_List* new_varlist ();

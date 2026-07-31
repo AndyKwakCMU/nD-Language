@@ -199,7 +199,9 @@ Token* word_handler (char* word, dbug* D)
 		t->type = TOK_STRING_TYPE;
 	} else if (strcmp (word, "none") == 0) {
 		t->type = TOK_NONE_TYPE;	
-	} else {
+	} else if (strcmp (word, "new") == 0) {
+                t->type = TOK_NEW;
+        } else {
 		t->type = TOK_IDENTIFIER;
 		t->lexeme = word;
 	}

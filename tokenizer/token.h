@@ -10,6 +10,10 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
+
+#include <stdlib.h>
+
+
 // ========================================================================= //
 
 
@@ -44,35 +48,37 @@ typedef enum {
 	TOK_COLON,
 	TOK_SEMICOLON,
 	TOK_COMMA,
-	TOK_DOT,
+	TOK_DOT,         // Binary_Expr
 
 	TOK_IF,
         TOK_ELSEIF,
-	TOK_ELSE,
+	TOK_ELSE,        // Keyword
 
-	TOK_EQ,
-	TOK_LT,
-	TOK_LEQ,
-	TOK_GT,
-	TOK_GEQ,
+        
+	TOK_EQ,          // Binary_Expr
+        TOK_LT,          // Binary_Expr
+	TOK_LEQ,         // Binary_Expr
+	TOK_GT,          // Binary_Expr
+	TOK_GEQ,         // Binary_Expr
 
-	TOK_AND,
-	TOK_OR,
+	TOK_AND,         // Binary_Expr
+	TOK_OR,          // Binary_Expr
 
-	TOK_WHILE,
+	TOK_WHILE,       // Keyword
 
-	TOK_PLUS,
-	TOK_MINUS,
-	TOK_STAR,
-	TOK_SLASH,
+	TOK_PLUS,        // Binary_Expr
+	TOK_MINUS,       // Binary_Expr
+	TOK_STAR,        // Binary_Expr
+	TOK_SLASH,       // Binary_Expr
 
-	TOK_ADD_ASSIGN,
-	TOK_SUB_ASSIGN,
-	TOK_MUL_ASSIGN,
-	TOK_DIV_ASSIGN,
+	TOK_ADD_ASSIGN,  // Binary_Expr
+	TOK_SUB_ASSIGN,  // Binary_Expr
+	TOK_MUL_ASSIGN,  // Binary_Expr
+	TOK_DIV_ASSIGN,  // Binary_Expr
 
-        TOK_ASSIGN,
-	TOK_MATCH_ARROW,
+        TOK_ASSIGN,      // Binary_Expr
+	TOK_MATCH_ARROW, 
+        TOK_NEW,
 
 	TOK_ERROR,
 
@@ -83,6 +89,7 @@ typedef enum {
 } TokenType;
 
 // ========================================================================= //
+
 
 // ========================================================================= //
 typedef struct Token {

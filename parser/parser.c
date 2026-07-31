@@ -127,38 +127,71 @@ void typedef_handler (AST_Program* A, GUser_Types* G, Stream* S)
 
         char* name = strdup (stream_curr(S)->lexeme);
 
-        stream_next(S);
-        if (stream_curr(S)->type != TOK_ASSIGN) {
-                serr (stream_curr(S), "typedef missing assignment");
-        }
-
-        User_Type* U = malloc (sizeof (User_Type));
-        U->name = name;
-        
-        if (stream_peek(S)->type == TOK_LBRACE) {
-                stream_next(S);
-                U->kind = STRUCT;
-                U->data.Struct = user_struct_handler (A, G, S);
-                if (stream_next(S)->type != TOK_RBRACE) {
-                        serr (stream_curr(S), "typedef alias missing closing brace");
-                }
-
+        User_Type* U;
+        if (isin_GUser (G, name)) {
+                U = get_GUser (G, name);
         } else {
-                U->kind = ALIAS;
-                U->data.Alias = type_handler (G, S);
+                U = malloc (sizeof (User_Type));
+                U->name = name;
+        }
+        stream_next(S);
 
+        #ifdef DEBUG
+        printf ("typedef handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif
+
+        if (stream_curr(S)->type == TOK_SEMICOLON) {
+                // Forward declaration case
+                if (!isin_GUser (G, name)) {
+                     U->kind = HOLD;   
+                }
+        } else {
                 #ifdef DEBUG
-                printf ("typedef handler debug print token 2\n");
+                printf ("typedef handler debug print token 3\n");
                 print_token (stream_curr(S));
                 #endif
-
-                if (stream_next(S)->type != TOK_SEMICOLON) {
-                        serr (stream_curr(S), "typedef alias missing semicolon");
+                if (stream_curr(S)->type != TOK_ASSIGN) {
+                        serr (stream_curr(S), "typedef missing assignment");
                 }
 
+                if (stream_peek(S)->type == TOK_LBRACE) {
+                        stream_next(S);
+                        #ifdef DEBUG
+                        printf ("typedef handler debug print token 4\n");
+                        print_token (stream_curr(S));
+                        #endif
+                        U->kind = STRUCT;
+                        U->data.Struct = user_struct_handler (A, G, S);
+                        if (stream_next(S)->type != TOK_RBRACE) {
+                                serr (stream_curr(S), "typedef alias missing closing brace");
+                        }
+
+                } else {
+                        U->kind = ALIAS;
+                        U->data.Alias = type_handler (G, S);
+
+                        #ifdef DEBUG
+                        printf ("typedef handler debug print token 5\n");
+                        print_token (stream_curr(S));
+                        #endif
+
+                        if (stream_next(S)->type != TOK_SEMICOLON) {
+                                serr (stream_curr(S), "typedef alias missing semicolon");
+                        }
+
+                }
         }
 
-        GUser_add (G, U);
+        #ifdef DEBUG
+        printf ("typedef handler debug print token 2\n");
+        print_token (stream_curr(S));
+        #endif
+        
+        if (!isin_GUser (G, name)) {
+                GUser_add (G, U);
+        }
+
 
         #ifdef DEBUG
         printf ("current state of GUSER:\n");
@@ -243,9 +276,11 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
                 if (curr_type == TOK_INT_TYPE) {
                         left_node->kind = VALUE;
                         left_node->data.base = INT;
+                        left_node->size = sizeof (int);
                 } else if (curr_type == TOK_CHAR_TYPE) {
                         left_node->kind = VALUE;
                         left_node->data.base = CHAR;
+                        left_node->size = sizeof (char);
                 } else if (curr_type == TOK_STRING_TYPE) {
                         left_node->kind = VALUE;
                         left_node->data.base = STRING;
@@ -260,9 +295,7 @@ Type* th_help (GUser_Types* G, Stream* S, int rbp)
                         if (isin_GUser (G, stream_curr(S)->lexeme)) {
                                 left_node->data.user = get_GUser (G, curr_tok->lexeme);
                         } else {
-                                left_node->data.user = malloc (sizeof (User_Type));
-                                left_node->data.user->name = strdup (stream_curr(S)->lexeme);
-                                left_node->data.user->kind = HOLD;
+                                serr (stream_curr(S), "user type undeclared");
                         }
                         
                 } else {
@@ -382,8 +415,9 @@ Fun_Call* fun_call_handler (AST_Program* A, GUser_Types* G,
 
         Fun_Call* C = new_call (stream_curr(S)->lexeme);
         
-        if (stream_next(S)->type == TOK_LPAREN) {
+        if (stream_peek(S)->type == TOK_LPAREN) {
                 // function name should be followed by parenthesis and args
+                stream_next(S);
                 fun_call_arg_handler (A, G, F, S, C);
                 #ifdef DEBUG
                 printf ("fun call handler debug print token 2\n");
@@ -560,8 +594,23 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                         if (!left_node->data.literal) {
                                 aerr (stream_curr(S));
                         }
-                        left_node->data.literal->type = LIT_INT;
+                        left_node->data.literal->kind = LIT_INT;
+                        Type* type = malloc (sizeof (Type));
+                        if (!type) {
+                                aerr (stream_curr(S));
+                        }
+                        type->kind = VALUE;
+                        type->data.base = INT;
+                        left_node->data.literal->type = type;
                         left_node->data.literal->value.int_val = val;
+                } else if (curr_type == TOK_NEW) {
+                        left_node->kind = NODE_LITERAL;
+                        left_node->data.literal = malloc (sizeof (Literal_Expr));
+                        if (!left_node->data.literal) {
+                                aerr (stream_curr(S));
+                        }
+                        left_node->data.literal->kind = LIT_NEW;
+                        left_node->data.literal->value.var = NULL;
                 } else if (curr_type == TOK_IDENTIFIER) {
                         // variable or function call
 
@@ -574,7 +623,7 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                                 if (!left_node->data.literal) {
                                         aerr (stream_curr(S));
                                 }
-                                left_node->data.literal->type = LIT_VAR;
+                                left_node->data.literal->kind = LIT_VAR;
                                 left_node->data.literal->value.var = 
                                                 fun_varlist_get_var (F, curr_tok->lexeme);
                         } else if (isin_program_fun (A, curr_tok->lexeme)) {
@@ -589,7 +638,7 @@ Astn* expr_help (AST_Program* A, GUser_Types* G,
                                 if (!left_node->data.literal) {
                                         aerr (stream_curr(S));
                                 }
-                                left_node->data.literal->type = LIT_VAR;
+                                left_node->data.literal->kind = LIT_VAR;
                                 left_node->data.literal->value.var = 
                                                 malloc (sizeof (Var));
                                 left_node->data.literal->value.var->name = 
