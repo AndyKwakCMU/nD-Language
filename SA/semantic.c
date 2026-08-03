@@ -417,10 +417,12 @@ void fun_type_check (AST_Program* A, GUser_Types* G, Fun_Type* F)
         body_check (A, G, F->ret_type, F->body);
 }
 
+/*
 size_t alloc_size (AST_Program* A, GUser_Types* G, Astn* ast)
 {
         // TODO
 }
+*/
 
 void semantic_analysis (AST_Program *AP) 
 {
@@ -443,7 +445,8 @@ void semantic_analysis (AST_Program *AP)
         #if DEBUG
         printf ("Sucess!\n");
         #endif
-
+        
+        /*
         #if DEBUG
         printf ("Adding up allocation sizes...\n");
         #endif
@@ -458,7 +461,7 @@ void semantic_analysis (AST_Program *AP)
         #if DEBUG
         printf ("Sucess\n");
         #endif
-
+        */
         
 
         // TODO: A final ast program checker

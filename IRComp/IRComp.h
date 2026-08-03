@@ -17,7 +17,6 @@
 
 #include "../utils.h"
 
-#include "../parser/parser.h"
 #include "../parser/ast.h"
 
 #include "IR.h"
@@ -28,4 +27,6 @@ IR_Program* IR_Comp (AST_Program* A);
 
 // ========================================================================= //
 
+
 #endif
+
