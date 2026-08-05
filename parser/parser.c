@@ -392,8 +392,9 @@ void fun_call_arg_handler (AST_Program* A, GUser_Types* G,
                 print_token (stream_curr(S));
                 #endif
 
-                if (stream_curr(S)->type != TOK_COMMA && 
-                    stream_peek(S)->type != TOK_RPAREN) {
+                if (stream_peek(S)->type == TOK_COMMA) {
+                        stream_next (S); // consume the separating comma
+                } else if (stream_peek(S)->type != TOK_RPAREN) {
                         // Syntax error
                         serr (stream_curr(S), "function call arg syntax error");
                 }
@@ -858,6 +859,7 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
 
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSE;
+                new->cond = NULL; // ELSE has no condition of its own
                 stream_next(S);
                 new->body = body_handler (A, G, fun, S);
 

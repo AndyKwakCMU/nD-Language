@@ -164,8 +164,34 @@ Type* replace_op_assign (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_
                 saerr ("Token unmatched at replace op assign\n");
         }
         B->op = TOK_ASSIGN;
+        // B->left stays the original lvalue (write target); B->right now
+        // points at the "x + rhs" node just built (new->data.binary->left
+        // holds an independent *copy* of the original x for that read), so
+        // "x += rhs" becomes "x = x + rhs" rather than losing the "+ x".
+        B->right = new;
 
         return binary_check (A, G, ret_type, B);
+}
+
+Type* assign_check (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* B)
+{
+        if (B->left->kind != NODE_LITERAL || B->left->data.literal->kind != LIT_VAR) {
+                saerr ("left-hand side of assignment must be a plain variable");
+        }
+
+        Type* left_type = ast_check (A, G, ret_type, B->left);
+
+        if (left_type == NULL || left_type->kind != MUTABLE) {
+                saerr ("cannot assign to an immutable variable");
+        }
+
+        Type* right_type = ast_check (A, G, ret_type, B->right);
+
+        if (!typecmp (left_type, right_type)) {
+                saerr ("assignment type mismatch");
+        }
+
+        return left_type;
 }
 
 Type* binary_check_help (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_Expr* B)
@@ -173,8 +199,18 @@ Type* binary_check_help (AST_Program* A, GUser_Types* G, Type* ret_type, Binary_
         REQUIRES (B->op != TOK_ARROW_TYPE && B->op != TOK_DOT);
 
         if ((B->op == TOK_PLUS || B->op == TOK_MINUS) ||
-            (B->op == TOK_STAR || B->op == TOK_SLASH)) {
+            (B->op == TOK_STAR || B->op == TOK_SLASH) ||
+            (B->op == TOK_EQ || B->op == TOK_LT) ||
+            (B->op == TOK_LEQ || B->op == TOK_GT) ||
+            (B->op == TOK_GEQ || B->op == TOK_AND) ||
+            (B->op == TOK_OR)) {
+                // Comparisons and logical and/or share arithmetic's "both
+                // sides are int" check and also result in an int (this
+                // language has no dedicated bool type; 0/1 double as
+                // booleans, matching how loop/cond conditions are checked).
                 return binary_check_int (A, G, ret_type, B);
+        } else if (B->op == TOK_ASSIGN) {
+                return assign_check (A, G, ret_type, B);
         } else if ((B->op == TOK_ADD_ASSIGN || B->op == TOK_SUB_ASSIGN) ||
                    (B->op == TOK_MUL_ASSIGN || B->op == TOK_DIV_ASSIGN)) {
                 return replace_op_assign (A, G, ret_type, B);
@@ -329,6 +365,8 @@ void loop_check (AST_Program* A, GUser_Types* G, Type* ret_type, Loop_Expr* data
                 printf ("loop check condition interger type allocation fail");
                 exit (EXIT_FAILURE);
         }
+        integer_type->kind = VALUE;
+        integer_type->data.base = INT;
 
         if (!typecmp (cond_type, integer_type)) {
                 saerr ("loop condition not int type");
@@ -341,18 +379,24 @@ void loop_check (AST_Program* A, GUser_Types* G, Type* ret_type, Loop_Expr* data
 
 void cond_check (AST_Program* A, GUser_Types* G, Type* ret_type, Cond_Expr* data)
 {
-        Type* cond_type = ast_check (A, G, ret_type, data->cond);
-        Type* integer_type = malloc (sizeof (Type));
-        if (!integer_type) {
-                printf ("cond check condition integer type allocation fail");
-                exit (EXIT_FAILURE);
-        }
+        // ELSE has no condition of its own (data->cond is NULL); only
+        // IF/ELSEIF clauses need their condition type-checked.
+        if (data->kind != ELSE) {
+                Type* cond_type = ast_check (A, G, ret_type, data->cond);
+                Type* integer_type = malloc (sizeof (Type));
+                if (!integer_type) {
+                        printf ("cond check condition integer type allocation fail");
+                        exit (EXIT_FAILURE);
+                }
+                integer_type->kind = VALUE;
+                integer_type->data.base = INT;
 
-        if (!typecmp (cond_type, integer_type)) {
-                saerr ("cond condition not int type");
-        }
+                if (!typecmp (cond_type, integer_type)) {
+                        saerr ("cond condition not int type");
+                }
 
-        free (integer_type);
+                free (integer_type);
+        }
 
         body_check (A, G, ret_type, data->body);
 
@@ -371,10 +415,8 @@ Type* ast_check (AST_Program* A, GUser_Types* G, Type* ret_type, Astn* ast)
                 return unary_check (A, G, ret_type, ast->data.unary);
         } else if (ast->kind == NODE_FUN_CALL) {
                 return fun_call_check (A, G, ast->data.fun_call);
-        } else if (ast->kind == NODE_LAMBDA) {
-                return ast_check (A, G, NULL, ast->data.lambda->function);
-        } else if (ast->kind == NODE_LAMCALL) {
-                return ast_check (A, G, NULL, ast->data.lam_call->function);
+        } else if (ast->kind == NODE_LAMBDA || ast->kind == NODE_LAMCALL) {
+                saerr ("lambdas are not supported by this build (out of scope)");
         } else if (ast->kind == NODE_LOOP) {
                 loop_check (A, G, ret_type, ast->data.loop);
         } else if (ast->kind == NODE_COND) {
@@ -394,24 +436,23 @@ void body_check (AST_Program* A, GUser_Types* G, Type* ret_type, Body_Block* dat
 {
         size_t i = 0;
         size_t n = data->num_inst;
-        
-        while (i < n - 1) {
+
+        while (i < n) {
                 ast_check (A, G, ret_type, data->inst[i++]);
         }
 }
 
-void fun_type_check (AST_Program* A, GUser_Types* G, Fun_Type* F) 
+void fun_type_check (AST_Program* A, GUser_Types* G, Fun_Type* F)
 {
         REQUIRES(is_fun(F));
 
         fun_name_check (A, F->fun_name);
 
-        if ((strcmp (F->fun_name, "main") == 0 &&
-            F->ret_type->kind == VALUE) &&
-            F->ret_type->data.base != INT) {
+        if (strcmp (F->fun_name, "main") == 0 &&
+            (F->ret_type->kind != VALUE || F->ret_type->data.base != INT)) {
                 saerr ("Main function return type is not int\n");
         }
-        
+
 
         // body check, which will call the body checker
         body_check (A, G, F->ret_type, F->body);
@@ -424,11 +465,11 @@ size_t alloc_size (AST_Program* A, GUser_Types* G, Astn* ast)
 }
 */
 
-void semantic_analysis (AST_Program *AP) 
+void semantic_analysis (AST_Program *AP)
 {
         size_t i = 0;
-        size_t n = AP->capacity;
-        GUser_Types* G = AP->G; 
+        size_t n = AP->function_count;
+        GUser_Types* G = AP->G;
 
         // Typecheck
         #if DEBUG

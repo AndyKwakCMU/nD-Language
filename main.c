@@ -20,7 +20,11 @@
 #include "parser/parser.h"
 #include "parser/ast_util.h"
 
-//#include "SA/semantic.h"
+#include "SA/semantic.h"
+
+#include "IRComp/IR.h"
+#include "IRComp/IRComp.h"
+#include "IRComp/IR_util.h"
 
 // printing the array of token shit
 /*
@@ -95,25 +99,20 @@ int main (int argc, char**argv)
 	printf ("Sucess!\n");
 	#endif
 
-	/*
 	printf ("Analyzing Semantics of AST ...");
 	semantic_analysis (A);
 	#ifdef DEBUG
 	print_ASTProgram (A);
 	#endif
 	printf ("Sucess!\n");
-	*/
 
-
-	/*
 	printf ("Generating Bytecode ...");
-	BC* B = IR_Comp (A);
+	IR_Program* B = IR_Comp (A);
 	// free_ASTProgram (A);
 	#ifdef DEBUG
-	print_BC (B);
+	print_IR_Program (B);
 	#endif
 	printf ("Sucess!\n");
-	*/
 
 	printf ("Oh hell yeah!\n");
 	return 0;
