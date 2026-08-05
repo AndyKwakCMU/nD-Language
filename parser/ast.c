@@ -19,6 +19,106 @@
 
 
 // ========================================================================= //
+// Structural type equality. MUTABLE is transparent for comparison purposes
+// (a mutable int unifies with a plain int); USER types compare by name since
+// GUser_Types guarantees unique names.
+bool typecmp (Type* t1, Type* t2)
+{
+        if (t1 == NULL || t2 == NULL) {
+                return t1 == t2;
+        }
+
+        if (t1->kind == MUTABLE) {
+                return typecmp (t1->data.mutable, t2);
+        }
+        if (t2->kind == MUTABLE) {
+                return typecmp (t1, t2->data.mutable);
+        }
+
+        if (t1->kind != t2->kind) {
+                return false;
+        }
+
+        switch (t1->kind) {
+                case VALUE :
+                        return t1->data.base == t2->data.base;
+                case POINTER :
+                        return typecmp (t1->data.pointer, t2->data.pointer);
+                case FUNCTION :
+                        return typecmp (t1->data.tree->input, t2->data.tree->input) &&
+                               typecmp (t1->data.tree->output, t2->data.tree->output);
+                case LIST :
+                        return typecmp (t1->data.list, t2->data.list);
+                case USER :
+                        return strcmp (t1->data.user->name, t2->data.user->name) == 0;
+                case NONE :
+                        return true;
+                default :
+                        return false;
+        }
+}
+
+bool isin_struct (User_Type* U, Var* var)
+{
+        REQUIRES (U != NULL && U->kind == STRUCT && var != NULL);
+        return isin_varlist (U->data.Struct, var->name);
+}
+
+// Deep copy of an expression subtree. Used by SA to duplicate the LHS of a
+// compound assignment (x += 1  =>  x = x + 1) so both sides own independent
+// nodes. Only covers node kinds that can legally appear as an lvalue/operand
+// in the core language (literals, binary/unary exprs, function calls).
+Astn* astcp (Astn* ast)
+{
+        if (ast == NULL) {
+                return NULL;
+        }
+
+        Astn* copy = malloc (sizeof (Astn));
+        if (!copy) {
+                saerr ("astcp: allocation failed");
+        }
+        copy->kind = ast->kind;
+
+        if (ast->kind == NODE_LITERAL) {
+                Literal_Expr* L = ast->data.literal;
+                Literal_Expr* newL = malloc (sizeof (Literal_Expr));
+                newL->kind = L->kind;
+                newL->type = L->type;
+                newL->value = L->value;
+                copy->data.literal = newL;
+        } else if (ast->kind == NODE_BINARY_EXPR) {
+                Binary_Expr* B = ast->data.binary;
+                Binary_Expr* newB = malloc (sizeof (Binary_Expr));
+                newB->op = B->op;
+                newB->left = astcp (B->left);
+                newB->right = astcp (B->right);
+                copy->data.binary = newB;
+        } else if (ast->kind == NODE_UNARY_EXPR) {
+                Unary_Expr* U = ast->data.unary;
+                Unary_Expr* newU = malloc (sizeof (Unary_Expr));
+                newU->op = U->op;
+                newU->arg = astcp (U->arg);
+                copy->data.unary = newU;
+        } else if (ast->kind == NODE_FUN_CALL) {
+                Fun_Call* C = ast->data.fun_call;
+                Fun_Call* newC = new_call (C->fun_name);
+                size_t i = 0;
+                while (i < C->num_arg) {
+                        call_add_arg (newC, astcp (C->args[i]));
+                        i++;
+                }
+                copy->data.fun_call = newC;
+        } else {
+                saerr ("astcp: unsupported node kind for copying");
+        }
+
+        return copy;
+}
+// ========================================================================= //
+
+
+// ========================================================================= //
 Var_List* new_varlist ()
 {
         Var_List* L = malloc (sizeof (Var_List));
@@ -47,10 +147,11 @@ void varlist_add (Var_List* L, Var* var)
 
         if (L->num_var == L->var_cap) {
                 size_t i = 0;
+                size_t n = L->num_var;
                 size_t cap = L->var_cap * 2;
                 Var** new = malloc (sizeof (Var*) * cap);
 
-                while (i < cap) {
+                while (i < n) {
                         new[i] = L->variables[i];
                         i++;
                 }
@@ -330,7 +431,9 @@ Body_Block* new_body ()
                 exit (EXIT_FAILURE);
         }
 
-        B->vars = NULL;
+        // Always non-NULL (possibly empty) so callers never need to guard
+        // against B->vars == NULL for bodies without a [ ... ] decl block.
+        B->vars = new_varlist ();
 
         return B;
 }
@@ -416,7 +519,7 @@ void program_add_fun (AST_Program* A, Fun_Type* fun)
                         size_t n = A->function_count;
                         while (i < n) {
                                 new[i] = A->functions[i];
-                                i--;
+                                i++;
                         }
                         Astn** rem = A->functions;
                         A->functions = new;

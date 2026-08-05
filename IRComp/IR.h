@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "../parser/ast.h"
+
 // ========================================================================= //
 // This is one function. The variable table resizes itself on new body 
 // declarations and scope exit. 

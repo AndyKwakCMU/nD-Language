@@ -139,18 +139,18 @@ void print_ast (Astn* A)
                 printf ("This ast is empty...\n");
         } else if (A->kind == NODE_LITERAL) {
                 printf ("Literal Node: \n");
-                if (A->data.literal->type == LIT_INT) {
+                if (A->data.literal->kind == LIT_INT) {
                         printf ("%d\n", A->data.literal->value.int_val);
-                } else if (A->data.literal->type == LIT_CHAR) {
+                } else if (A->data.literal->kind == LIT_CHAR) {
                         printf ("%c\n", A->data.literal->value.char_val);
-                } else if (A->data.literal->type == LIT_VAR) {
+                } else if (A->data.literal->kind == LIT_VAR) {
                         Var* V = A->data.literal->value.var;
                         printf ("Variable: %s\n", V->name);
                         printf ("type: ");
                         print_type (V->type);
                         printf ("values: \n");
                         print_ast (V->value);
-                } else if (A->data.literal->type == LIT_NEW) {
+                } else if (A->data.literal->kind == LIT_NEW) {
                         printf ("new allocation!\n");
                 } else {
                         printf ("Node literal but didnt match a type...\n");
