@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include "../parser/ast.h"
+
 // ========================================================================= //
 // This is one function. The variable table resizes itself on new body 
 // declarations and scope exit. 
@@ -58,6 +60,9 @@ typedef struct IR_Program {
 // 0x68 imul
 // 0x6C idiv
 //
+// 0x6F ineg
+// 
+//
 // Constants Operations:
 //
 // 0x10 bipush <b>              S -> S, x:w32 (Push byte into stack)
@@ -76,7 +81,7 @@ typedef struct IR_Program {
 // Control Flow:
 //
 // 0x00 nop
-// 0x9F if <o1, o2>             S, x -> S (pc=pc+(o1<<8|o2) if v != 0)
+// 0x9F if <o1, o2>             S, x -> S (pc=pc+(o1<<8|o2) if x == 0)
 // 0xA7 goto <o1, o2>           S -> S    (pc=pc+(o1<<8|o2))
 //
 // Functions:
@@ -92,11 +97,19 @@ typedef struct IR_Program {
 // 0x2F dyload                  S, a:*      -> S, b:* (b is a piece of dynamic pool memory)
 // 0x4F dystore                 S, a:*, b:* -> S      (*a = b)
 //
+// 0x6E sload                   S, a, b -> c          (c = a.b, struct access)
+// 
+//
 // 
 // ========================================================================= //
 IR* new_IR ();
 
 void byte_add (IR* fun, uint8_t byte);
+
+uint16_t byte_index (IR* fun);
+
+void byte_add_index (IR* fun, uint16_t index, uint8_t byte);
+
 
 // 
 IR_Program* new_IR_Program ();
@@ -108,6 +121,25 @@ void IR_add_fun (IR_Program* I, IR* fun);
 uint16_t IR_add_int (IR_Program* I, int32_t x);
 
 uint16_t IR_add_str (IR_Program* I, char* s);
+
+typedef Var_List Varlist_Stack;
+struct Varlist_Stack {
+        size_t num;
+        size_t cap;
+        Var_List** stack;
+};
+
+typedef Varlist_Stack Vstack;
+
+Vstack* new_vstack ();
+
+void push_vstack (Vstack* S, Var_List* V);
+
+void pop_vstack (Vstack* S);
+
+uint8_t search_vstack (Vstack* S, char* name);
+
+uint16_t search_fun (AST_Program* A, char* name);
 
 // ========================================================================= //
 
