@@ -6,6 +6,9 @@
 
 
 // ========================================================================= //
+#ifndef SEMANTIC_H
+#define SEMANTIC_H
+
 #include <stdlib.h>
 #include <assert.h>
 
@@ -22,3 +25,5 @@ void semantic_analysis (AST_Program* A);
 
 
 // ========================================================================= //
+
+#endif

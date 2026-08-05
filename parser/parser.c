@@ -392,8 +392,9 @@ void fun_call_arg_handler (AST_Program* A, GUser_Types* G,
                 print_token (stream_curr(S));
                 #endif
 
-                if (stream_curr(S)->type != TOK_COMMA && 
-                    stream_peek(S)->type != TOK_RPAREN) {
+                if (stream_peek(S)->type == TOK_COMMA) {
+                        stream_next (S); // consume the separating comma
+                } else if (stream_peek(S)->type != TOK_RPAREN) {
                         // Syntax error
                         serr (stream_curr(S), "function call arg syntax error");
                 }
@@ -747,7 +748,7 @@ Astn* expr_handler (AST_Program* A, GUser_Types* G,
         return expr_help (A, G, fun, S, 0);
 }
 
-Astn* body_cond_handler (AST_Program* A, GUser_Types* G, 
+Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                          Fun_Type* fun, Stream* S)
 {
         #ifdef DEBUG
@@ -760,50 +761,51 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
         Cond_Expr* cond = malloc (sizeof (Cond_Expr));
 
         TokenType curr_type = stream_curr(S)->type;
-        
+
+        REQUIRES (curr_type == TOK_IF);
+
         #ifdef DEBUG
         printf ("body cond handler debug print token 2\n");
         print_token (stream_curr(S));
-        #endif        
-        
-        if (curr_type == TOK_IF) {
-                cond->kind = IF;
-                curr_type = stream_next(S)->type;
-                
-                if (curr_type != TOK_LPAREN) {
-                        serr (stream_curr(S), "if statement missing parenthesis");
-                }
-                
-                cond->cond = expr_handler (A, G, fun, S);
-                
-                #ifdef DEBUG
-                printf ("body cond handler debug print token 3\n");
-                print_token (stream_curr(S));
-                #endif
-                
-                curr_type = stream_next(S)->type;
-                
-                if (curr_type != TOK_RPAREN) {
-                        serr (stream_curr(S), "if statement missing closing parenthesis");
-                }
+        #endif
 
-                curr_type = stream_next(S)->type;
-                cond->body = body_handler (A, G, fun, S);
-                
-                #ifdef DEBUG
-                printf ("body cond handler debug print token 4\n");
-                print_token (stream_curr(S));
-                #endif
-                
-                curr_type = stream_next(S)->type;
-                
-                if (curr_type != TOK_RBRACE) {
-                        serr (stream_curr(S), "if statement body missing closing brace");
-                }
-        } 
+        cond->kind = IF;
+        curr_type = stream_next(S)->type;
 
+        if (curr_type != TOK_LPAREN) {
+                serr (stream_curr(S), "if statement missing parenthesis");
+        }
+
+        cond->cond = expr_handler (A, G, fun, S);
+
+        #ifdef DEBUG
+        printf ("body cond handler debug print token 3\n");
+        print_token (stream_curr(S));
+        #endif
 
         curr_type = stream_next(S)->type;
+
+        if (curr_type != TOK_RPAREN) {
+                serr (stream_curr(S), "if statement missing closing parenthesis");
+        }
+
+        curr_type = stream_next(S)->type;
+        cond->body = body_handler (A, G, fun, S);
+
+        #ifdef DEBUG
+        printf ("body cond handler debug print token 4\n");
+        print_token (stream_curr(S));
+        #endif
+
+        curr_type = stream_next(S)->type;
+
+        if (curr_type != TOK_RBRACE) {
+                serr (stream_curr(S), "if statement body missing closing brace");
+        }
+
+        // curr is now ON the if-body's closing brace (consumed). Peek ahead
+        // (without consuming) to see if an elseif/else chain follows, so a
+        // bare "if" doesn't over-advance past the token after it.
         Cond_Expr* curr_pt = cond;
 
         #ifdef DEBUG
@@ -811,7 +813,9 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
         print_token (stream_curr(S));
         #endif
 
-        while (curr_type == TOK_ELSEIF) {
+        while (stream_peek(S)->type == TOK_ELSEIF) {
+                stream_next(S); // curr = TOK_ELSEIF
+
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSEIF;
                 curr_type = stream_next(S)->type;
@@ -821,7 +825,7 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                 }
 
                 new->cond = expr_handler (A, G, fun, S);
-                
+
                 #ifdef DEBUG
                 printf ("body cond handler debug print token 6\n");
                 print_token (stream_curr(S));
@@ -848,14 +852,15 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                 if (curr_type != TOK_RBRACE) {
                         serr (stream_curr(S), "elseif statement body missing closing brace");
                 }
-
-                curr_type = stream_next(S)->type;
         }
 
-        if (curr_type == TOK_ELSE) {
+        if (stream_peek(S)->type == TOK_ELSE) {
+                stream_next(S); // curr = TOK_ELSE
+
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSE;
-                curr_type = stream_next(S)->type;
+                new->cond = NULL; // ELSE has no condition of its own
+                stream_next(S);
                 new->body = body_handler (A, G, fun, S);
 
                 #ifdef DEBUG
@@ -869,9 +874,14 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                 if (curr_type != TOK_RBRACE) {
                         serr (stream_curr(S), "elseif statement body missing closing brace");
                 }
+        } else {
+                curr_pt->chain = NULL;
         }
 
         // Should be a null/ELSE-kind terminated linked list
+        // Postcondition: curr is on the closing brace of the last processed
+        // clause's body, matching the "curr on last token of statement"
+        // convention used elsewhere in body_handler.
 
         node->data.cond = cond;
         return node;
@@ -943,8 +953,7 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
 
         // Square brace variable declaration body stuff
         if (curr_type == TOK_LSBRACE) {
-                B->vars = new_varlist ();
-
+                // B->vars was already allocated (empty) by new_body ().
                 stream_next(S);
 
                 // still at TOK_LSBRACE, peeking...
@@ -1035,6 +1044,9 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
                         Astn* node = malloc (sizeof (Astn));
                         node->kind = NODE_BODY;
                         node->data.body_block = body_handler (A, G, fun, S);
+                        if (stream_next(S)->type != TOK_RBRACE) {
+                                serr (stream_curr(S), "nested body missing closing brace");
+                        }
                         body_add_inst (B, node);
                 } else if (peek == TOK_LBRACE) {
                         stream_next (S);
@@ -1042,6 +1054,9 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
                         Astn* node = malloc (sizeof (Astn));
                         node->kind = NODE_BODY;
                         node->data.body_block = body_handler (A, G, fun, S);
+                        if (stream_next(S)->type != TOK_RBRACE) {
+                                serr (stream_curr(S), "nested body missing closing brace");
+                        }
                         body_add_inst (B, node);
                 } else {
                         Astn* node = expr_handler (A, G, fun, S);

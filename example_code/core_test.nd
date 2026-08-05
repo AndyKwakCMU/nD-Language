@@ -1,0 +1,44 @@
+# Core-language test program: functions, mutable/immutable vars, arithmetic,
+# assignment, comparisons, and/or, if/elseif/else, while, calls, return.
+# No structs/pointers/new/lambdas/lists -- those are out of scope for the
+# current IRComp/SA pass (see CLAUDE.md).
+
+fun add (a : int, b : int) : int
+{
+        return a + b;
+}
+
+fun abs_val (x : int) : int
+[
+        result : int$;
+]
+{
+        if (x < 0) {
+                result = 0 - x;
+        } else {
+                result = x;
+        }
+        return result;
+}
+
+fun main () : int
+[
+        i : int$ = 0;
+        sum : int$ = 0;
+]
+{
+        while (i < 5) {
+                sum = sum + add (i, 1);
+                i = i + 1;
+        }
+
+        if (sum > 10 and abs_val (0 - 3) == 3) {
+                sum = sum + 100;
+        } elseif (sum == 0) {
+                sum = 0 - 1;
+        } else {
+                sum = 0;
+        }
+
+        return sum;
+}
