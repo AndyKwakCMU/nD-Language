@@ -1,0 +1,9 @@
+# Build output (see Makefile's `all` target for the actual binary name)
+ndc_ast_print_SA1
+*.dSYM/
+
+# Object files, in case anything is ever built incrementally
+*.o
+
+# macOS Finder metadata
+.DS_Store
