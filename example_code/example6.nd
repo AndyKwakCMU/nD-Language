@@ -1,0 +1,44 @@
+# CURRENT WORKING BYTECODE EXAMPLE
+# ./ndc_ast_print_SA1 example_code/example6.nd -d  ->  example_code/example6.ndbc
+
+fun fib (n : int) : int
+{
+        if (n < 2) {
+                return n;
+        }
+        return fib (n - 1) + fib (n - 2);
+}
+
+fun classify (x : int) : int
+{
+        if (x < 0) {
+                return -1;
+        } elseif (x == 0) {
+                return 0;
+        } elseif (x > 1000 or x == 7) {
+                return 2;
+        }
+        return 1;
+}
+
+fun main () : int
+[
+        r : int$ = 0;
+]
+{
+        r = fib (20);
+        r = r * 10 + classify (-5) + classify (0) + classify (7) + classify (3) + classify (5000);
+        [
+                y : int$ = 4;
+        ]
+        {
+                r += y;
+        }
+        [
+                z : int = 1000;
+        ]
+        {
+                r -= z;
+        }
+        return r / 2;
+}

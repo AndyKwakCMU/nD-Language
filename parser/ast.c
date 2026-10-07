@@ -50,7 +50,7 @@ void varlist_add (Var_List* L, Var* var)
                 size_t cap = L->var_cap * 2;
                 Var** new = malloc (sizeof (Var*) * cap);
 
-                while (i < cap) {
+                while (i < L->num_var) {
                         new[i] = L->variables[i];
                         i++;
                 }
@@ -416,7 +416,7 @@ void program_add_fun (AST_Program* A, Fun_Type* fun)
                         size_t n = A->function_count;
                         while (i < n) {
                                 new[i] = A->functions[i];
-                                i--;
+                                i++;
                         }
                         Astn** rem = A->functions;
                         A->functions = new;

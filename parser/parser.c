@@ -392,8 +392,9 @@ void fun_call_arg_handler (AST_Program* A, GUser_Types* G,
                 print_token (stream_curr(S));
                 #endif
 
-                if (stream_curr(S)->type != TOK_COMMA && 
-                    stream_peek(S)->type != TOK_RPAREN) {
+                if (stream_peek(S)->type == TOK_COMMA) {
+                        stream_next(S);
+                } else if (stream_peek(S)->type != TOK_RPAREN) {
                         // Syntax error
                         serr (stream_curr(S), "function call arg syntax error");
                 }
@@ -803,17 +804,22 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
         } 
 
 
-        curr_type = stream_next(S)->type;
+        // Peek rather than consume: when no elseif/else follows, the token
+        // after the closing brace belongs to the enclosing body.
+        cond->chain = NULL;
         Cond_Expr* curr_pt = cond;
 
-        #ifdef DEBUG
-        printf ("body cond handler debug print token 5\n");
-        print_token (stream_curr(S));
-        #endif
+        while (stream_peek(S)->type == TOK_ELSEIF) {
+                stream_next(S);
 
-        while (curr_type == TOK_ELSEIF) {
+                #ifdef DEBUG
+                printf ("body cond handler debug print token 5\n");
+                print_token (stream_curr(S));
+                #endif
+
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSEIF;
+                new->chain = NULL;
                 curr_type = stream_next(S)->type;
 
                 if (curr_type != TOK_LPAREN) {
@@ -848,13 +854,13 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                 if (curr_type != TOK_RBRACE) {
                         serr (stream_curr(S), "elseif statement body missing closing brace");
                 }
-
-                curr_type = stream_next(S)->type;
         }
 
-        if (curr_type == TOK_ELSE) {
+        if (stream_peek(S)->type == TOK_ELSE) {
+                stream_next(S);
                 Cond_Expr* new = malloc (sizeof (Cond_Expr));
                 new->kind = ELSE;
+                new->cond = NULL;
                 curr_type = stream_next(S)->type;
                 new->body = body_handler (A, G, fun, S);
 
@@ -867,7 +873,7 @@ Astn* body_cond_handler (AST_Program* A, GUser_Types* G,
                 curr_pt->chain = new;
                 curr_type = stream_next(S)->type;
                 if (curr_type != TOK_RBRACE) {
-                        serr (stream_curr(S), "elseif statement body missing closing brace");
+                        serr (stream_curr(S), "else statement body missing closing brace");
                 }
         }
 
@@ -1035,6 +1041,9 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
                         Astn* node = malloc (sizeof (Astn));
                         node->kind = NODE_BODY;
                         node->data.body_block = body_handler (A, G, fun, S);
+                        if (stream_next(S)->type != TOK_RBRACE) {
+                                serr (stream_curr(S), "nested body missing closing brace");
+                        }
                         body_add_inst (B, node);
                 } else if (peek == TOK_LBRACE) {
                         stream_next (S);
@@ -1042,6 +1051,9 @@ Body_Block* body_handler (AST_Program* A, GUser_Types* G,
                         Astn* node = malloc (sizeof (Astn));
                         node->kind = NODE_BODY;
                         node->data.body_block = body_handler (A, G, fun, S);
+                        if (stream_next(S)->type != TOK_RBRACE) {
+                                serr (stream_curr(S), "nested body missing closing brace");
+                        }
                         body_add_inst (B, node);
                 } else {
                         Astn* node = expr_handler (A, G, fun, S);
@@ -1173,10 +1185,10 @@ void fun_handler (AST_Program* A, GUser_Types* G, Stream* S)
 
         stream_next(S);
 
-        fun->body = body_handler (A, G, fun, S);
-
-
+        // Register before parsing the body so the function can call itself
         program_add_fun (A, fun);
+
+        fun->body = body_handler (A, G, fun, S);
 }
 
 // ========================================================================= //

@@ -9,7 +9,9 @@ all: main.c
 	tokenizer/tokenize.c \
 	parser/parser.c \
 	parser/ast_util.c \
-	parser/ast.c 
+	parser/ast.c \
+	IRComp/IR.c \
+	IRComp/IRComp.c
 
 clean:
-	rm -f ndc_ast_print
+	rm -rf ndc_ast_print_SA1 ndc_ast_print_SA1.dSYM

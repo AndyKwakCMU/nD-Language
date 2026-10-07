@@ -22,6 +22,9 @@
 
 //#include "SA/semantic.h"
 
+#include "IRComp/IR.h"
+#include "IRComp/IRComp.h"
+
 // printing the array of token shit
 /*
 #include "tokenizer/tokenize_array.h"
@@ -105,15 +108,36 @@ int main (int argc, char**argv)
 	*/
 
 
-	/*
 	printf ("Generating Bytecode ...");
-	BC* B = IR_Comp (A);
-	// free_ASTProgram (A);
-	#ifdef DEBUG
-	print_BC (B);
-	#endif
+	IR_Program* B = IR_Comp (A);
 	printf ("Sucess!\n");
-	*/
+
+	if (debug_mode) {
+		print_IR_Program (B);
+	}
+
+	// foo.nd -> foo.ndbc
+	size_t len = strlen (filename);
+	char* outname = malloc (len + 6);
+	strcpy (outname, filename);
+	if (len >= 3 && strcmp (filename + len - 3, ".nd") == 0) {
+		strcat (outname, "bc");
+	} else {
+		strcat (outname, ".ndbc");
+	}
+
+	printf ("Writing %s ...", outname);
+	FILE* out = fopen (outname, "wb");
+	if (!out) {
+		fprintf (stderr, "\ncould not open %s for writing\n", outname);
+		return 1;
+	}
+	write_IR_Program (B, out);
+	fclose (out);
+	printf ("Sucess!\n");
+
+	free (outname);
+	IR_Program_free (B);
 
 	printf ("Oh hell yeah!\n");
 	return 0;
